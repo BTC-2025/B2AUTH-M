@@ -14,12 +14,15 @@ import '../../core/services/auth_api_service.dart';
 import '../../core/services/security_api_service.dart';
 import '../../core/services/local_storage_service.dart';
 import '../auth/notifiers/auth_notifier.dart';
+import '../dashboard/mfa_page.dart';
+import '../../widgets/add_authenticator_modal.dart';
 import 'zero_trust_page.dart';
 import 'audit_timeline_screen.dart';
 import 'active_sessions_screen.dart';
 
 class SecurityPage extends StatefulWidget {
-  const SecurityPage({super.key});
+  final Function(int)? onSwitchTab;
+  const SecurityPage({super.key, this.onSwitchTab});
 
   @override
   State<SecurityPage> createState() => _SecurityPageState();
@@ -33,6 +36,7 @@ class _SecurityPageState extends State<SecurityPage> {
 
   List<Map<String, dynamic>> _devices = [];
   List<Map<String, dynamic>> _externalApps = [];
+  List<dynamic> _authAccounts = [];
   final Set<String> _terminatingDeviceIds = {};
   final Set<String> _terminatingExternalIds = {};
   bool _isLoadingSessions = false;
@@ -42,9 +46,56 @@ class _SecurityPageState extends State<SecurityPage> {
   void initState() {
     super.initState();
     _startOtpCountdown();
+    _loadSavedAuthAccounts();
     WidgetsBinding.instance.addPostFrameCallback((_) {
       _fetchActiveSessionsFromApi();
     });
+  }
+
+  void _loadSavedAuthAccounts() {
+    try {
+      final saved = LocalStorageService.getString('cloud_authenticator_accounts');
+      if (saved != null && saved.isNotEmpty) {
+        final decoded = jsonDecode(saved);
+        if (decoded is List) {
+          setState(() {
+            _authAccounts = List<dynamic>.from(decoded);
+          });
+        }
+      }
+    } catch (e) {
+      debugPrint('Error loading saved authenticator accounts: $e');
+    }
+  }
+
+  void _addAuthenticatorAccount(String name, String secret) {
+    final newAcc = {
+      'id': DateTime.now().millisecondsSinceEpoch.toString(),
+      'name': name,
+      'secret': secret,
+      'createdAt': DateTime.now().toIso8601String(),
+    };
+    setState(() {
+      _authAccounts.add(newAcc);
+    });
+    LocalStorageService.setString('cloud_authenticator_accounts', jsonEncode(_authAccounts));
+    _showFeedback('Authenticator account "$name" added successfully! 🎉');
+  }
+
+  void _removeAuthenticatorAccount(String id) {
+    setState(() {
+      _authAccounts.removeWhere((acc) => acc is Map && acc['id'] == id);
+    });
+    LocalStorageService.setString('cloud_authenticator_accounts', jsonEncode(_authAccounts));
+    _showFeedback('Authenticator account removed.');
+  }
+
+  void _showAddAuthenticatorModal() {
+    AddAuthenticatorModal.show(
+      context,
+      onAccountAdded: (name, secret) => _addAuthenticatorAccount(name, secret),
+      onFeedback: (msg) => _showFeedback(msg),
+    );
   }
 
   Future<void> _fetchActiveSessionsFromApi() async {
@@ -661,9 +712,21 @@ class _SecurityPageState extends State<SecurityPage> {
           const SizedBox(height: 24),
 
           // 2FA Accounts & Codes Section
-          const SectionHeader(
-            title: '2FA Authenticator Tokens',
-            subtitle: 'Real-time rotating 6-digit TOTP codes',
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              const Expanded(
+                child: SectionHeader(
+                  title: '2FA Authenticator Tokens',
+                  subtitle: 'Real-time rotating 6-digit TOTP codes',
+                ),
+              ),
+              TextButton.icon(
+                onPressed: _showAddAuthenticatorModal,
+                icon: const Icon(Icons.add_rounded, size: 16, color: AppColors.primary),
+                label: const Text('Add Account', style: TextStyle(color: AppColors.primary, fontWeight: FontWeight.bold, fontSize: 12)),
+              ),
+            ],
           ),
           const SizedBox(height: 12),
 
@@ -697,6 +760,21 @@ class _SecurityPageState extends State<SecurityPage> {
                 _buildTotpTile('BNX Primary Mailbox', seed, 1),
                 const Divider(height: 16),
                 _buildTotpTile('B2Auth Admin Gateway', seed, 2),
+                if (_authAccounts.isNotEmpty) ...[
+                  for (int i = 0; i < _authAccounts.length; i++) ...[
+                    const Divider(height: 16),
+                    _buildTotpTile(
+                      _authAccounts[i] is Map ? (_authAccounts[i]['name'] ?? 'Authenticator Account') : _authAccounts[i].toString(),
+                      seed,
+                      3 + i,
+                      onDelete: () {
+                        if (_authAccounts[i] is Map && _authAccounts[i]['id'] != null) {
+                          _removeAuthenticatorAccount(_authAccounts[i]['id'].toString());
+                        }
+                      },
+                    ),
+                  ],
+                ],
               ],
             ),
           ),
@@ -713,24 +791,77 @@ class _SecurityPageState extends State<SecurityPage> {
             padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
             child: Column(
               children: [
+                // Authenticator App - Opens Add Authenticator Account modal
                 SettingsTile(
-                  icon: Icons.phonelink_lock_outlined,
-                  title: 'Authenticator App (TOTP)',
-                  description: security.is2FAEnabled ? 'Active (Recommended)' : 'Not configured',
-                  trailing: Switch.adaptive(
-                    value: security.is2FAEnabled,
-                    activeTrackColor: AppColors.primary,
-                    onChanged: (val) async {
-                      if (val) {
-                        _showAuthenticatorWizard();
-                      } else {
-                        final token = context.read<AuthNotifier>().accessToken ?? LocalStorageService.getString('access_token') ?? '';
-                        await _securityApiService.disable2Fa(token);
-                        security.toggle2FA(false);
-                        _showFeedback('2FA authentication disabled');
-                      }
-                    },
+                  icon: Icons.qr_code_scanner_rounded,
+                  title: 'Authenticator App',
+                  description: 'Add & sync authenticator profiles via QR or manual key.',
+                  trailing: ElevatedButton(
+                    onPressed: _showAddAuthenticatorModal,
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: AppColors.primary,
+                      foregroundColor: Colors.white,
+                      elevation: 0,
+                      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                      minimumSize: Size.zero,
+                      tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+                    ),
+                    child: const Text(
+                      'Add Account',
+                      style: TextStyle(fontSize: 11.5, fontWeight: FontWeight.bold),
+                    ),
                   ),
+                  onTap: _showAddAuthenticatorModal,
+                  showDivider: true,
+                ),
+
+                // 2FA - Navigates to 2FA / MFA tab (the existing authenticator app tab)
+                SettingsTile(
+                  icon: Icons.lock_clock_outlined,
+                  title: '2FA',
+                  description: security.is2FAEnabled
+                      ? 'Active (Recommended) • Tap to view 2FA tab'
+                      : 'Configure 2-Step Verification & TOTP',
+                  trailing: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Switch.adaptive(
+                        value: security.is2FAEnabled,
+                        activeTrackColor: AppColors.primary,
+                        onChanged: (val) async {
+                          if (val) {
+                            _showAuthenticatorWizard();
+                          } else {
+                            final token = context.read<AuthNotifier>().accessToken ?? LocalStorageService.getString('access_token') ?? '';
+                            await _securityApiService.disable2Fa(token);
+                            security.toggle2FA(false);
+                            _showFeedback('2FA authentication disabled');
+                          }
+                        },
+                      ),
+                      const SizedBox(width: 4),
+                      IconButton(
+                        icon: const Icon(Icons.arrow_forward_ios, size: 14, color: AppColors.textSecondary),
+                        onPressed: () {
+                          if (widget.onSwitchTab != null) {
+                            widget.onSwitchTab!(1);
+                          } else {
+                            Navigator.push(context, MaterialPageRoute(builder: (_) => const MfaPage()));
+                          }
+                        },
+                        constraints: const BoxConstraints(),
+                        padding: EdgeInsets.zero,
+                      ),
+                    ],
+                  ),
+                  onTap: () {
+                    if (widget.onSwitchTab != null) {
+                      widget.onSwitchTab!(1);
+                    } else {
+                      Navigator.push(context, MaterialPageRoute(builder: (_) => const MfaPage()));
+                    }
+                  },
                   showDivider: true,
                 ),
                 SettingsTile(
@@ -920,7 +1051,7 @@ class _SecurityPageState extends State<SecurityPage> {
     );
   }
 
-  Widget _buildTotpTile(String accountLabel, String seed, int index) {
+  Widget _buildTotpTile(String accountLabel, String seed, int index, {VoidCallback? onDelete}) {
     final code = _generateOtp(seed, index).toString();
     return Row(
       children: [
@@ -955,6 +1086,11 @@ class _SecurityPageState extends State<SecurityPage> {
           icon: const Icon(Icons.copy_rounded, size: 18, color: AppColors.textSecondary),
           onPressed: () => _showFeedback('TOTP code copied to clipboard!'),
         ),
+        if (onDelete != null)
+          IconButton(
+            icon: const Icon(Icons.delete_outline_rounded, size: 18, color: AppColors.error),
+            onPressed: onDelete,
+          ),
       ],
     );
   }

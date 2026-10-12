@@ -43,7 +43,7 @@ class _HomeScreenState extends State<HomeScreen> {
     _pages = [
       DashboardPage(onSwitchTab: (index) => setState(() => _selectedIndex = index)),
       MfaPage(onSwitchTab: (index) => setState(() => _selectedIndex = index)),
-      const SecurityPage(),
+      SecurityPage(onSwitchTab: (index) => setState(() => _selectedIndex = index)),
       SettingsPage(onSwitchTab: (index) => setState(() => _selectedIndex = index)),
       const NotificationsPage(),
     ];
