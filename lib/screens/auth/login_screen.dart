@@ -140,8 +140,8 @@ class _LoginScreenState extends State<LoginScreen>
     showDialog(
       context: context,
       barrierDismissible: false,
-      builder: (context) => StatefulBuilder(
-        builder: (context, setDialogState) => AlertDialog(
+      builder: (dialogCtx) => StatefulBuilder(
+        builder: (modalCtx, setDialogState) => AlertDialog(
           scrollable: true,
           shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(24)),
           title: Text(step == 1
@@ -209,7 +209,7 @@ class _LoginScreenState extends State<LoginScreen>
           ),
         ),
           actions: [
-            TextButton(onPressed: () => Navigator.pop(context), child: const Text('Cancel')),
+            TextButton(onPressed: () => Navigator.pop(modalCtx), child: const Text('Cancel')),
             ElevatedButton(
               onPressed: isLoading ? null : () async {
                 final api = AuthApiService();
@@ -235,7 +235,7 @@ class _LoginScreenState extends State<LoginScreen>
                   });
                 } else if (step == 3) {
                   setDialogState(() => isLoading = true);
-                  final res = await api.verifyForgotPasswordOtp(identifier: identifier, otp: otpController.text.trim());
+                  await api.verifyForgotPasswordOtp(identifier: identifier, otp: otpController.text.trim());
                   setDialogState(() {
                     isLoading = false;
                     step = 4;
@@ -247,8 +247,10 @@ class _LoginScreenState extends State<LoginScreen>
                     otp: otpController.text.trim(),
                     newPassword: newPasswordController.text.trim(),
                   );
+                  if (modalCtx.mounted) {
+                    Navigator.pop(modalCtx);
+                  }
                   if (mounted) {
-                    Navigator.pop(context);
                     ScaffoldMessenger.of(context).showSnackBar(
                       SnackBar(content: Text(res.message.isNotEmpty ? res.message : 'Password reset successful! You can now sign in.')),
                     );
@@ -407,12 +409,12 @@ class _LoginScreenState extends State<LoginScreen>
                                   color: Colors.white,
                                   borderRadius: BorderRadius.circular(40),
                                   border: Border.all(
-                                    color: AuthConstants.primaryBlue.withOpacity(0.12),
+                                    color: AuthConstants.primaryBlue.withValues(alpha: 0.12),
                                     width: 1.5,
                                   ),
                                   boxShadow: [
                                     BoxShadow(
-                                      color: AuthConstants.primaryBlue.withOpacity(0.1),
+                                      color: AuthConstants.primaryBlue.withValues(alpha: 0.1),
                                       blurRadius: 25,
                                       offset: const Offset(0, 10),
                                     ),
@@ -476,7 +478,7 @@ class _LoginScreenState extends State<LoginScreen>
                               ),
                               boxShadow: [
                                 BoxShadow(
-                                  color: Colors.black.withOpacity(0.05),
+                                  color: Colors.black.withValues(alpha: 0.05),
                                   blurRadius: 30,
                                   offset: const Offset(0, 10),
                                 ),

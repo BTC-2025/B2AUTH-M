@@ -17,17 +17,44 @@ All API responses follow this standard wrapper structure:
 
 ### `POST /auth/login`
 
-**Purpose**: Step 1 of login (checking identifier).
+**Purpose**: Authenticate user credentials or initiate 2FA flow.
 
-- **Body**: `{ "identifier": "user@bnxmail.com" }`
-- **Response**: `{ "success": true, "data": { "tempToken": "ey...", "is2FaEnabled": false, "email": "user@bnxmail.com" } }`
+- **Body**: `{ "email": "user@bnxmail.com", "password": "mypassword" }`
+  *(Note: Live backend OpenAPI schema requires both `email` and `password`. If identifier is supplied without domain, format it as `user@bnxmail.com`)*
+- **Response (Direct Login)**:
+
+  ```json
+  {
+    "success": true,
+    "message": "Login successful",
+    "data": {
+      "accessToken": "ey...",
+      "refreshToken": "ey...",
+      "email": "user@bnxmail.com",
+      "username": "user"
+    }
+  }
+  ```
+
+- **Response (If 2FA Enabled)**:
+
+  ```json
+  {
+    "success": true,
+    "data": {
+      "tempToken": "ey...",
+      "is2FaEnabled": true,
+      "email": "user@bnxmail.com"
+    }
+  }
+  ```
 
 ### `POST /auth/login/2fa`
 
-**Purpose**: Step 2 of login (verifying password).
+**Purpose**: Step 2 of 2FA login verification (verifying password or token when multi-step 2FA is challenged).
 
 - **Body**: `{ "tempToken": "ey...", "password": "mypassword" }`
-- **Response**: `{ "success": true, "data": { "accessToken": "ey..." } }` (If no 2FA) or `{ "success": true, "data": { "tempToken": "ey...", "is2FaEnabled": true } }`
+- **Response**: `{ "success": true, "data": { "accessToken": "ey..." } }`
 
 ### `POST /auth/login/2fa/send-otp`
 

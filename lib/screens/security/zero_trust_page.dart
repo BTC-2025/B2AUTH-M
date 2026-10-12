@@ -48,7 +48,7 @@ class _ZeroTrustPageState extends State<ZeroTrustPage> {
                     ),
                     const SizedBox(height: 12),
                     DropdownButtonFormField<PolicyAction>(
-                      value: selectedAction,
+                      initialValue: selectedAction,
                       decoration: const InputDecoration(labelText: 'THEN Action'),
                       items: PolicyAction.values.map((a) {
                         return DropdownMenuItem(
@@ -176,9 +176,9 @@ class _ZeroTrustPageState extends State<ZeroTrustPage> {
                       width: double.infinity,
                       padding: const EdgeInsets.all(12),
                       decoration: BoxDecoration(
-                        color: AppColors.primaryBlue.withOpacity(0.1),
+                        color: AppColors.primaryBlue.withValues(alpha: 0.1),
                         borderRadius: BorderRadius.circular(8),
-                        border: Border.all(color: AppColors.primaryBlue.withOpacity(0.3)),
+                        border: Border.all(color: AppColors.primaryBlue.withValues(alpha: 0.3)),
                       ),
                       child: Text(
                         zeroTrust.simulationResult,

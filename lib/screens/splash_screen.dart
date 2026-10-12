@@ -69,9 +69,9 @@ class _SplashScreenState extends State<SplashScreen>
 
         Navigator.of(context).pushReplacement(
           PageRouteBuilder(
-            pageBuilder: (_, animation, __) =>
+            pageBuilder: (_, animation, _) =>
                 shouldGoHome ? const HomeScreen() : const LoginScreen(),
-            transitionsBuilder: (_, animation, __, child) {
+            transitionsBuilder: (_, animation, _, child) {
               return FadeTransition(opacity: animation, child: child);
             },
             transitionDuration: const Duration(milliseconds: 500),
@@ -121,18 +121,18 @@ class _SplashScreenState extends State<SplashScreen>
                             color: Colors.white,
                             borderRadius: BorderRadius.circular(36),
                             border: Border.all(
-                              color: AppColors.primary.withOpacity(0.12),
+                              color: AppColors.primary.withValues(alpha: 0.12),
                               width: 1.5,
                             ),
                             boxShadow: [
                               BoxShadow(
-                                color: AppColors.primary.withOpacity(0.15),
+                                color: AppColors.primary.withValues(alpha: 0.15),
                                 blurRadius: 25,
                                 spreadRadius: 1,
                                 offset: const Offset(0, 10),
                               ),
                               BoxShadow(
-                                color: Colors.black.withOpacity(0.04),
+                                color: Colors.black.withValues(alpha: 0.04),
                                 blurRadius: 8,
                                 offset: const Offset(0, 3),
                               ),
@@ -205,7 +205,7 @@ class _SplashScreenState extends State<SplashScreen>
                               value: _progressAnimation.value,
                               minHeight: 6,
                               backgroundColor:
-                                  AppColors.primary.withOpacity(0.1),
+                                  AppColors.primary.withValues(alpha: 0.1),
                               valueColor: const AlwaysStoppedAnimation<Color>(
                                 AppColors.primary,
                               ),

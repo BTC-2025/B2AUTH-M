@@ -13,29 +13,31 @@ class AuthApiService {
     required String identifier,
     String? password,
   }) async {
+    final cleanIdentifier = identifier.trim();
+    final bool isEmail = cleanIdentifier.contains('@');
+    final String email = isEmail ? cleanIdentifier : '$cleanIdentifier@bnxmail.com';
+
     if (password != null && password.isNotEmpty) {
-      final bool isEmail = identifier.contains('@');
-      debugPrint('🔐 [AUTH SERVICE] Direct DTO Login { ${isEmail ? 'email' : 'username'}: $identifier } -> ${ApiConstants.login}');
+      debugPrint('🔐 [AUTH SERVICE] Direct Login { email: $email } -> ${ApiConstants.login}');
       final resDirect = await ApiClient.post(
         ApiConstants.login,
         body: {
-          if (isEmail) 'email': identifier else 'username': identifier,
+          'email': email,
           'password': password,
         },
       );
-
-      if (resDirect.success && resDirect.statusCode >= 200 && resDirect.statusCode < 300) {
-        return resDirect;
-      }
+      // Return direct API response immediately. Do not fall through to strip password!
+      return resDirect;
     }
 
-    debugPrint('🔐 [AUTH SERVICE] Step 1 identifier check { identifier: $identifier } -> ${ApiConstants.login}');
-    final res1 = await ApiClient.post(
+    debugPrint('🔐 [AUTH SERVICE] Step 1 identifier check { identifier: $cleanIdentifier } -> ${ApiConstants.login}');
+    return await ApiClient.post(
       ApiConstants.login,
-      body: {'identifier': identifier},
+      body: {
+        'identifier': cleanIdentifier,
+        'email': email,
+      },
     );
-
-    return res1;
   }
 
   /// Step 2 of Login: Verifying password with tempToken from Step 1.

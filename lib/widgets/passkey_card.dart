@@ -50,7 +50,7 @@ class PasskeyCard extends StatelessWidget {
           Container(
             padding: const EdgeInsets.all(10),
             decoration: BoxDecoration(
-              color: color.withOpacity(0.12),
+              color: color.withValues(alpha: 0.12),
               shape: BoxShape.circle,
             ),
             child: Icon(_getKeyIcon(item.type), color: color, size: 24),
@@ -81,7 +81,7 @@ class PasskeyCard extends StatelessWidget {
           Container(
             padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
             decoration: BoxDecoration(
-              color: item.isSynced ? AppColors.successGreen.withOpacity(0.1) : Colors.grey.withOpacity(0.1),
+              color: item.isSynced ? AppColors.successGreen.withValues(alpha: 0.1) : Colors.grey.withValues(alpha: 0.1),
               borderRadius: BorderRadius.circular(12),
             ),
             child: Row(

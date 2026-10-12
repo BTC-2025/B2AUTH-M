@@ -15,9 +15,6 @@ class PasskeyStudioScreen extends StatefulWidget {
 
 class _PasskeyStudioScreenState extends State<PasskeyStudioScreen> with SingleTickerProviderStateMixin {
   void _startPasskeyRegistrationModal(BuildContext context) {
-    String keyName = '';
-    PasskeyType selectedType = PasskeyType.biometric;
-
     showModalBottomSheet(
       context: context,
       isScrollControlled: true,
@@ -66,7 +63,7 @@ class _PasskeyStudioScreenState extends State<PasskeyStudioScreen> with SingleTi
                       Container(
                         padding: const EdgeInsets.all(10),
                         decoration: BoxDecoration(
-                          color: AppColors.primaryBlue.withOpacity(0.15),
+                          color: AppColors.primaryBlue.withValues(alpha: 0.15),
                           shape: BoxShape.circle,
                         ),
                         child: const Icon(Icons.fingerprint_rounded, color: AppColors.primaryBlue, size: 28),
@@ -205,7 +202,7 @@ class _BiometricRegistrationModalState extends State<_BiometricRegistrationModal
                   child: Container(
                     padding: const EdgeInsets.all(24),
                     decoration: BoxDecoration(
-                      color: AppColors.primaryBlue.withOpacity(0.15),
+                      color: AppColors.primaryBlue.withValues(alpha: 0.15),
                       shape: BoxShape.circle,
                     ),
                     child: const Icon(Icons.fingerprint_rounded, size: 60, color: AppColors.primaryBlue),
@@ -223,7 +220,7 @@ class _BiometricRegistrationModalState extends State<_BiometricRegistrationModal
                 ),
                 const SizedBox(height: 14),
                 DropdownButtonFormField<PasskeyType>(
-                  value: _selectedType,
+                  initialValue: _selectedType,
                   decoration: const InputDecoration(labelText: 'Key Type'),
                   items: const [
                     DropdownMenuItem(value: PasskeyType.biometric, child: Text('Device Biometrics (TouchID / FaceID)')),

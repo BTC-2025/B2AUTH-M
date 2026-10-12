@@ -78,7 +78,7 @@ class IdentityCard extends StatelessWidget {
       child: Material(
         color: Colors.transparent,
         child: InkWell(
-          onTap: onTap ?? () => print('Switching to account: $email'),
+          onTap: onTap ?? () => debugPrint('Switching to account: $email'),
           onLongPress: () => _showAccountMenu(context),
           borderRadius: BorderRadius.circular(20),
           child: Padding(

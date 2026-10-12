@@ -1,5 +1,4 @@
 import 'package:flutter/material.dart';
-import '../services/local_storage_service.dart';
 
 enum ThreatLevel { low, medium, high, critical }
 enum SensitivityMode { relaxed, balanced, strict }

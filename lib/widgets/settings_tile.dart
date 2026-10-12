@@ -23,7 +23,7 @@ class SettingsTile extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return InkWell(
-      onTap: onTap ?? () => print('$title clicked'),
+      onTap: onTap ?? () => debugPrint('$title clicked'),
       child: Column(
         children: [
           Row(

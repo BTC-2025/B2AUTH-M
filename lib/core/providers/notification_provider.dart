@@ -1,11 +1,9 @@
 import 'package:flutter/material.dart';
 import '../models/notification_model.dart';
-import '../services/local_storage_service.dart';
 import 'package:uuid/uuid.dart';
 
 class NotificationProvider with ChangeNotifier {
   List<NotificationModel> _notifications = [];
-  NotificationCategory _filter = NotificationCategory.system; // Default to 'all' logic in UI
   bool _isAscending = false;
   String _searchQuery = '';
 

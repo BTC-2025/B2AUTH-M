@@ -37,7 +37,7 @@ class _AppCardState extends State<AppCard> {
           borderRadius: BorderRadius.circular(16),
           border: Border.all(color: AppColors.border),
           boxShadow: _isHovered 
-            ? [BoxShadow(color: Colors.black.withOpacity(0.05), blurRadius: 10, offset: const Offset(0, 4))]
+            ? [BoxShadow(color: Colors.black.withValues(alpha: 0.05), blurRadius: 10, offset: const Offset(0, 4))]
             : [],
         ),
         padding: const EdgeInsets.all(20),

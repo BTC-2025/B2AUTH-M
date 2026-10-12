@@ -3,7 +3,6 @@ import 'package:file_picker/file_picker.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
-import 'package:uuid/uuid.dart';
 import '../core/theme/app_colors.dart';
 import '../core/theme/app_text_styles.dart';
 import '../core/providers/account_provider.dart';
@@ -30,75 +29,7 @@ class ProfileOverlay extends StatelessWidget {
     );
   }
 
-  void _showAddAccountDialog(BuildContext context) {
-    final nameController = TextEditingController();
-    final emailController = TextEditingController();
-    
-    showDialog(
-      context: context,
-      builder: (ctx) => AlertDialog(
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(24)),
-        title: const Text('Add Account'),
-        content: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            TextField(
-              controller: nameController,
-              decoration: const InputDecoration(
-                labelText: 'Full Name',
-                hintText: 'John Doe',
-              ),
-            ),
-            const SizedBox(height: 12),
-            TextField(
-              controller: emailController,
-              decoration: const InputDecoration(
-                labelText: 'Email Address',
-                hintText: 'john.doe@company.com',
-              ),
-            ),
-          ],
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(ctx),
-            child: const Text('Cancel'),
-          ),
-          ElevatedButton(
-            onPressed: () {
-              if (nameController.text.isNotEmpty && emailController.text.isNotEmpty) {
-                final accountProvider = context.read<AccountProvider>();
-                final newAcc = UserAccount(
-                  id: const Uuid().v4(),
-                  name: nameController.text,
-                  displayName: nameController.text.split(' ')[0],
-                  username: nameController.text.replaceAll(' ', '').toLowerCase(),
-                  email: emailController.text,
-                  avatarLetter: nameController.text.substring(0, 1).toUpperCase(),
-                  type: AccountType.personal,
-                  createdAt: DateTime.now(),
-                  lastUsed: DateTime.now(),
-                  securityScore: 85,
-                  storageUsage: 0.1,
-                );
-                accountProvider.addAccount(newAcc);
-                accountProvider.switchAccount(newAcc.id);
-                Navigator.pop(ctx);
-                _showFeedback(context, 'Account ${newAcc.email} added!');
-              } else {
-                _showFeedback(context, 'Please enter name and email');
-              }
-            },
-            style: ElevatedButton.styleFrom(
-              backgroundColor: AppColors.primary,
-              foregroundColor: Colors.white,
-            ),
-            child: const Text('Add'),
-          ),
-        ],
-      ),
-    );
-  }
+
 
   void _performSignOut(BuildContext context) {
     context.read<AccountProvider>().clearAccounts();
@@ -183,8 +114,10 @@ class ProfileOverlay extends StatelessWidget {
                             user.avatarUrl = savePath;
                             LocalStorageService.setString('profile_image_${user.id}', savePath);
                             LocalStorageService.setString('profile_image_${user.email.trim().toLowerCase()}', savePath);
-                            context.read<AccountProvider>().updateAccount(user);
-                            _showFeedback(context, 'Profile picture updated! 📸');
+                            if (context.mounted) {
+                              context.read<AccountProvider>().updateAccount(user);
+                              _showFeedback(context, 'Profile picture updated! 📸');
+                            }
                           }
                         } catch (e) {
                           debugPrint('Error picking profile image: $e');
@@ -268,7 +201,7 @@ class ProfileOverlay extends StatelessWidget {
                   },
                   style: OutlinedButton.styleFrom(
                     padding: const EdgeInsets.symmetric(vertical: 12),
-                    side: BorderSide(color: AppColors.primary.withOpacity(0.2)),
+                    side: BorderSide(color: AppColors.primary.withValues(alpha: 0.2)),
                     shape: RoundedRectangleBorder(
                       borderRadius: BorderRadius.circular(12),
                     ),
@@ -277,7 +210,7 @@ class ProfileOverlay extends StatelessWidget {
                 ),
               ),
               const SizedBox(height: 24),
-              Divider(color: AppColors.darkShadow.withOpacity(0.5)),
+              Divider(color: AppColors.darkShadow.withValues(alpha: 0.5)),
               const SizedBox(height: 12),
               
               // Add another account option

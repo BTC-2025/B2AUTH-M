@@ -89,52 +89,105 @@ class LoginNotifier extends ValueNotifier<LoginState> {
       return {'success': false, 'message': 'Please fill in all required fields.'};
     }
 
-    // 2. Real-Time API Call: Step 1 POST /auth/login
-    final step1Response = await _apiService.loginStep1(identifier: email, password: password);
+    final cleanEmail = email.trim();
 
-    // Helper to safely extract token from response data map
+    // 2. Real-Time API Call: Step 1 POST /auth/login
+    final step1Response = await _apiService.loginStep1(identifier: cleanEmail, password: password);
+
+    // Helper to safely extract token from response data map (including nested maps)
     String? extractToken(dynamic data, List<String> keys) {
-      if (data is Map<String, dynamic>) {
+      if (data == null) return null;
+      if (data is Map) {
         for (final k in keys) {
           if (data[k] != null && data[k].toString().isNotEmpty) {
             return data[k].toString();
+          }
+        }
+        if (data['data'] is Map) {
+          for (final k in keys) {
+            if (data['data'][k] != null && data['data'][k].toString().isNotEmpty) {
+              return data['data'][k].toString();
+            }
           }
         }
       }
       return null;
     }
 
-    // Case A: Direct accessToken returned from API backend
-    final directAccessToken = extractToken(step1Response.data, ['accessToken', 'token', 'jwt', 'access_token']);
-    if (step1Response.success && directAccessToken != null) {
-      value = value.copyWith(isLoading: false);
-      return {
-        'success': true,
-        'accessToken': directAccessToken,
-        'email': email,
-      };
+    bool check2Fa(dynamic data) {
+      if (data == null) return false;
+      if (data is Map) {
+        if (data['is2FaEnabled'] == true ||
+            data['is2faEnabled'] == true ||
+            data['requires2FA'] == true ||
+            data['requires2fa'] == true) {
+          return true;
+        }
+        if (data['data'] is Map) {
+          final inner = data['data'];
+          if (inner['is2FaEnabled'] == true ||
+              inner['is2faEnabled'] == true ||
+              inner['requires2FA'] == true ||
+              inner['requires2fa'] == true) {
+            return true;
+          }
+        }
+      }
+      return false;
     }
 
-    // Case B: tempToken returned from Step 1 -> Proceed to Step 2 (/auth/login/2fa)
+    // Case A: Direct accessToken or 2FA returned from API backend
+    final directAccessToken = extractToken(step1Response.data, ['accessToken', 'token', 'jwt', 'access_token']);
     final tempToken = extractToken(step1Response.data, ['tempToken', 'temp_token']);
-    if (tempToken != null && tempToken.isNotEmpty) {
+    final is2FaRequired = check2Fa(step1Response.data);
+
+    if (step1Response.success) {
+      // Direct 2FA Challenge from backend
+      if (is2FaRequired || (tempToken != null && directAccessToken == null)) {
+        final token = tempToken ?? directAccessToken ?? '';
+        if (token.isNotEmpty) {
+          await _apiService.send2FaOtp(tempToken: token);
+          value = value.copyWith(
+            isLoading: false,
+            tempToken: token,
+            is2FaRequired: true,
+            email: cleanEmail,
+          );
+          return {
+            'success': false,
+            'requires2FA': true,
+            'tempToken': token,
+            'message': '2FA verification code sent to your registered contact.',
+          };
+        }
+      }
+
+      if (directAccessToken != null) {
+        value = value.copyWith(isLoading: false);
+        return {
+          'success': true,
+          'accessToken': directAccessToken,
+          'email': cleanEmail,
+        };
+      }
+    }
+
+    // Case B: Fallback Step 2 (/auth/login/2fa) if tempToken was returned
+    if (tempToken != null && tempToken.isNotEmpty && directAccessToken == null) {
       final step2Response = await _apiService.loginStep2(
         tempToken: tempToken,
         password: password,
       );
 
       if (step2Response.success) {
-        final is2Fa = (step2Response.data is Map)
-            ? (step2Response.data['is2FaEnabled'] as bool? ?? false)
-            : false;
-
-        if (is2Fa) {
+        final step2Is2Fa = check2Fa(step2Response.data);
+        if (step2Is2Fa) {
           await _apiService.send2FaOtp(tempToken: tempToken);
           value = value.copyWith(
             isLoading: false,
             tempToken: tempToken,
             is2FaRequired: true,
-            email: email,
+            email: cleanEmail,
           );
           return {
             'success': false,
@@ -149,43 +202,59 @@ class LoginNotifier extends ValueNotifier<LoginState> {
         return {
           'success': true,
           'accessToken': accessToken,
-          'email': email,
+          'email': cleanEmail,
         };
       }
     }
 
-    // 3. Registered Account Verification Check
-    // If remote API is unauthenticated (401), verify against registered accounts stored on device
+    // 3. Registered Account Verification Check (offline mock fallback)
     final List<UserAccount> localAccounts = LocalStorageService.getAccounts();
     final bool isRegisteredLocally = localAccounts.any(
-      (acc) => acc.email.toLowerCase() == email.toLowerCase() ||
-               acc.username.toLowerCase() == email.toLowerCase(),
+      (acc) => acc.email.toLowerCase() == cleanEmail.toLowerCase() ||
+               acc.username.toLowerCase() == cleanEmail.toLowerCase(),
     );
 
     if (isRegisteredLocally) {
       final String sessionToken = 'b2auth_token_${DateTime.now().millisecondsSinceEpoch}';
       value = value.copyWith(isLoading: false);
-      debugPrint('✅ [AUTH NOTIFIER] Validated registered account for $email');
+      debugPrint('✅ [AUTH NOTIFIER] Validated registered account locally for $cleanEmail');
       return {
         'success': true,
         'accessToken': sessionToken,
-        'email': email,
+        'email': cleanEmail,
       };
     }
 
-    // 4. If account does not exist in backend or local registered accounts -> REJECT WITH INVALID CREDENTIALS
-    const String invalidMsg = 'Invalid credentials. The email address or password is incorrect. Please register an account first.';
+    // 4. Remote API rejected credentials or request
+    final String rawServerMsg = step1Response.message.trim();
+    final String serverMsgLower = rawServerMsg.toLowerCase();
+
+    final bool isUserNotFound = serverMsgLower.contains('user not found') ||
+                                serverMsgLower.contains('does not exist') ||
+                                serverMsgLower.contains('not registered');
+
+    final String finalErrorMsg;
+    if (rawServerMsg.isNotEmpty && rawServerMsg != 'Success' && !rawServerMsg.startsWith('API Request Failed')) {
+      if (isUserNotFound) {
+        finalErrorMsg = 'Account not found for $cleanEmail. Please register an account first.';
+      } else {
+        finalErrorMsg = rawServerMsg;
+      }
+    } else {
+      finalErrorMsg = 'Invalid email or password. Please check your credentials.';
+    }
+
     value = value.copyWith(
       isLoading: false,
-      generalError: invalidMsg,
-      emailError: 'Invalid email or password',
-      passwordError: 'Invalid email or password',
+      generalError: finalErrorMsg,
+      emailError: isUserNotFound ? 'Account not registered' : null,
+      passwordError: isUserNotFound ? null : 'Incorrect email or password',
     );
-    debugPrint('❌ [AUTH NOTIFIER] Rejected unauthenticated user attempt for $email');
+    debugPrint('❌ [AUTH NOTIFIER] Login rejected for $cleanEmail: $finalErrorMsg (API: $rawServerMsg)');
 
     return {
       'success': false,
-      'message': invalidMsg,
+      'message': finalErrorMsg,
     };
   }
 

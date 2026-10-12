@@ -27,37 +27,27 @@ class _RegisterAccountTypeScreenState
   // Validation errors (Personal)
   String? _firstNameError;
   String? _lastNameError;
-  String? _usernameError;
-  String? _dobError;
   String? _passwordError;
   String? _retypePasswordError;
-  String? _personalPhoneError;
 
   // Validation errors (Business)
   String? _businessNameError;
-  String? _customDomainError;
   String? _ownerFirstNameError;
   String? _ownerLastNameError;
-  String? _adminUsernameError;
   String? _adminPasswordError;
   String? _retypeAdminPasswordError;
-  String? _phoneError;
 
   // Validation errors (Child)
   String? _childFirstNameError;
   String? _childLastNameError;
-  String? _childUsernameError;
-  String? _childDobError;
   String? _childPasswordError;
   String? _childRetypePasswordError;
   String? _parentEmailError;
-  String? _securityAnswerError;
 
   bool _isRegistering = false;
   String? _emailHandleError;
 
-  // Username & Email Handle Suggestions State
-  List<String> _usernameSuggestions = [];
+  // Email Handle Suggestions State
   List<String> _emailHandleSuggestions = [];
 
   // Parent OTP State (Child)
@@ -95,28 +85,8 @@ class _RegisterAccountTypeScreenState
   final _childPasswordController = TextEditingController();
   final _childRetypePasswordController = TextEditingController();
   final _parentEmailController = TextEditingController();
-  final _securityAnswerController = TextEditingController();
-  String _securityQuestion = 'What is your favorite animal?';
-  String _childGender = 'Male';
-  String _personalGender = 'Male';
-
-  final List<String> _genderOptions = [
-    'Male',
-    'Female',
-    'Other',
-    'Prefer not to say',
-  ];
-
   // Step 3 Controllers
   final _emailHandleController = TextEditingController();
-
-  final List<String> _securityQuestions = [
-    'What is your favorite animal?',
-    'What is the name of your first pet?',
-    'What is your favorite book?',
-    'What is the name of your school?',
-    'What is your favorite game?',
-  ];
 
   @override
   void dispose() {
@@ -144,7 +114,6 @@ class _RegisterAccountTypeScreenState
     _childPasswordController.dispose();
     _childRetypePasswordController.dispose();
     _parentEmailController.dispose();
-    _securityAnswerController.dispose();
     _parentOtpController.dispose();
     _emailHandleController.dispose();
     super.dispose();
@@ -154,29 +123,20 @@ class _RegisterAccountTypeScreenState
     setState(() {
       _firstNameError = null;
       _lastNameError = null;
-      _usernameError = null;
-      _dobError = null;
       _passwordError = null;
       _retypePasswordError = null;
-      _personalPhoneError = null;
 
       _businessNameError = null;
-      _customDomainError = null;
       _ownerFirstNameError = null;
       _ownerLastNameError = null;
-      _adminUsernameError = null;
       _adminPasswordError = null;
       _retypeAdminPasswordError = null;
-      _phoneError = null;
 
       _childFirstNameError = null;
       _childLastNameError = null;
-      _childUsernameError = null;
-      _childDobError = null;
       _childPasswordError = null;
       _childRetypePasswordError = null;
       _parentEmailError = null;
-      _securityAnswerError = null;
       _emailHandleError = null;
     });
   }
@@ -295,7 +255,7 @@ class _RegisterAccountTypeScreenState
         '$baseName@$domain',
         '${baseName}123@$domain',
         '${baseName}_bnxmail@$domain',
-        '${baseName}.${DateTime.now().year}@$domain',
+        '$baseName.${DateTime.now().year}@$domain',
       ];
 
       // Fetch dynamic username suggestions from GET /auth/username-suggestions
@@ -419,6 +379,7 @@ class _RegisterAccountTypeScreenState
 
     // 1. API: POST /auth/register
     final regResponse = await _apiService.registerUser(regPayload);
+    if (!mounted) return;
     if (!regResponse.success) {
       setState(() => _isRegistering = false);
       final errorMsg = regResponse.message.isNotEmpty
@@ -600,49 +561,55 @@ class _RegisterAccountTypeScreenState
 
   // STEP 1: ACCOUNT TYPE SELECTION
   Widget _buildStep1AccountTypeSelection() {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        const Text(
-          'Select Account Type',
-          style: TextStyle(fontSize: 22, fontWeight: FontWeight.bold),
-        ),
-        const SizedBox(height: 6),
-        const Text(
-          'Choose the account profile that best fits your security needs.',
-          style: TextStyle(fontSize: 13, color: AuthConstants.textSecondary),
-        ),
-        const SizedBox(height: 24),
+    return RadioGroup<String>(
+      groupValue: _selectedType,
+      onChanged: (val) {
+        if (val != null) setState(() => _selectedType = val);
+      },
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          const Text(
+            'Select Account Type',
+            style: TextStyle(fontSize: 22, fontWeight: FontWeight.bold),
+          ),
+          const SizedBox(height: 6),
+          const Text(
+            'Choose the account profile that best fits your security needs.',
+            style: TextStyle(fontSize: 13, color: AuthConstants.textSecondary),
+          ),
+          const SizedBox(height: 24),
 
-        _buildTypeCard(
-          type: 'personal',
-          title: 'Personal Account',
-          subtitle: 'Individual zero-trust authentication for daily security & passkeys.',
-          icon: Icons.person_rounded,
-        ),
-        const SizedBox(height: 14),
+          _buildTypeCard(
+            type: 'personal',
+            title: 'Personal Account',
+            subtitle: 'Individual zero-trust authentication for daily security & passkeys.',
+            icon: Icons.person_rounded,
+          ),
+          const SizedBox(height: 14),
 
-        _buildTypeCard(
-          type: 'business',
-          title: 'Business / Enterprise',
-          subtitle: 'Multi-user domain management, SSO, and team security controls.',
-          icon: Icons.business_center_rounded,
-        ),
-        const SizedBox(height: 14),
+          _buildTypeCard(
+            type: 'business',
+            title: 'Business / Enterprise',
+            subtitle: 'Multi-user domain management, SSO, and team security controls.',
+            icon: Icons.business_center_rounded,
+          ),
+          const SizedBox(height: 14),
 
-        _buildTypeCard(
-          type: 'child',
-          title: 'Child / Family Account',
-          subtitle: 'Parentally supervised access with security questions & OTP controls.',
-          icon: Icons.child_care_rounded,
-        ),
-        const SizedBox(height: 32),
+          _buildTypeCard(
+            type: 'child',
+            title: 'Child / Family Account',
+            subtitle: 'Parentally supervised access with security questions & OTP controls.',
+            icon: Icons.child_care_rounded,
+          ),
+          const SizedBox(height: 32),
 
-        AuthButton(
-          text: 'Continue to Details',
-          onPressed: () => setState(() => _step = 2),
-        ),
-      ],
+          AuthButton(
+            text: 'Continue to Details',
+            onPressed: () => setState(() => _step = 2),
+          ),
+        ],
+      ),
     );
   }
 
@@ -670,8 +637,8 @@ class _RegisterAccountTypeScreenState
           boxShadow: [
             BoxShadow(
               color: isSelected
-                  ? AuthConstants.primaryBlue.withOpacity(0.08)
-                  : Colors.black.withOpacity(0.03),
+                  ? AuthConstants.primaryBlue.withValues(alpha: 0.08)
+                  : Colors.black.withValues(alpha: 0.03),
               blurRadius: 15,
               offset: const Offset(0, 5),
             ),
@@ -683,7 +650,7 @@ class _RegisterAccountTypeScreenState
               padding: const EdgeInsets.all(12),
               decoration: BoxDecoration(
                 color: isSelected
-                    ? AuthConstants.primaryBlue.withOpacity(0.1)
+                    ? AuthConstants.primaryBlue.withValues(alpha: 0.1)
                     : Colors.grey.shade100,
                 borderRadius: BorderRadius.circular(14),
               ),
@@ -716,9 +683,7 @@ class _RegisterAccountTypeScreenState
             ),
             Radio<String>(
               value: type,
-              groupValue: _selectedType,
               activeColor: AuthConstants.primaryBlue,
-              onChanged: (val) => setState(() => _selectedType = val!),
             ),
           ],
         ),
@@ -969,6 +934,10 @@ class _RegisterAccountTypeScreenState
               ),
               if (_parentOtpMessage != null) ...[
                 Text(_parentOtpMessage!, style: const TextStyle(fontSize: 11, color: AuthConstants.primaryBlue)),
+                const SizedBox(height: 8),
+              ],
+              if (_parentOtpError != null) ...[
+                Text(_parentOtpError!, style: const TextStyle(fontSize: 11, color: Colors.redAccent)),
                 const SizedBox(height: 8),
               ],
               if (!_parentOtpVerified) ...[

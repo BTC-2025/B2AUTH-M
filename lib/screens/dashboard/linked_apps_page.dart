@@ -114,7 +114,7 @@ class _LinkedAppsPageState extends State<LinkedAppsPage> {
                   Container(
                     padding: const EdgeInsets.all(12),
                     decoration: BoxDecoration(
-                      color: app.brandColor.withOpacity(0.15),
+                      color: app.brandColor.withValues(alpha: 0.15),
                       borderRadius: BorderRadius.circular(16),
                     ),
                     child: Icon(app.icon, color: app.brandColor, size: 32),
@@ -354,7 +354,7 @@ class _LinkedAppsPageState extends State<LinkedAppsPage> {
                   shrinkWrap: true,
                   physics: const NeverScrollableScrollPhysics(),
                   itemCount: filteredApps.length,
-                  separatorBuilder: (_, __) => const SizedBox(height: 16),
+                  separatorBuilder: (_, _) => const SizedBox(height: 16),
                   itemBuilder: (context, index) {
                     final app = filteredApps[index];
                     return NeumorphicCard(
@@ -367,7 +367,7 @@ class _LinkedAppsPageState extends State<LinkedAppsPage> {
                               Container(
                                 padding: const EdgeInsets.all(12),
                                 decoration: BoxDecoration(
-                                  color: app.brandColor.withOpacity(0.12),
+                                  color: app.brandColor.withValues(alpha: 0.12),
                                   borderRadius: BorderRadius.circular(16),
                                 ),
                                 child: Icon(app.icon, color: app.brandColor, size: 28),
@@ -389,7 +389,7 @@ class _LinkedAppsPageState extends State<LinkedAppsPage> {
                                         Container(
                                           padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
                                           decoration: BoxDecoration(
-                                            color: app.isConnected ? AppColors.success.withOpacity(0.12) : AppColors.error.withOpacity(0.12),
+                                            color: app.isConnected ? AppColors.success.withValues(alpha: 0.12) : AppColors.error.withValues(alpha: 0.12),
                                             borderRadius: BorderRadius.circular(8),
                                           ),
                                           child: Text(
@@ -415,7 +415,7 @@ class _LinkedAppsPageState extends State<LinkedAppsPage> {
                               const SizedBox(width: 8),
                               Switch(
                                 value: app.isConnected,
-                                activeColor: AppColors.primary,
+                                activeThumbColor: AppColors.primary,
                                 onChanged: (val) {
                                   setState(() => app.isConnected = val);
                                   _showFeedback(val ? '${app.name} connected' : '${app.name} access revoked');

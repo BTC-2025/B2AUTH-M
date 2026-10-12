@@ -4,7 +4,6 @@ import '../../widgets/neumorphic_card.dart';
 import '../../widgets/custom_button.dart';
 import '../../widgets/custom_textfield.dart';
 import '../../core/theme/app_colors.dart';
-import '../../core/theme/app_text_styles.dart';
 import '../../core/providers/account_provider.dart';
 
 class EditProfileScreen extends StatefulWidget {

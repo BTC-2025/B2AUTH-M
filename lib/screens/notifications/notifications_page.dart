@@ -81,7 +81,7 @@ class _NotificationsPageState extends State<NotificationsPage> {
               shrinkWrap: true,
               physics: const NeverScrollableScrollPhysics(),
               itemCount: notifications.length,
-              separatorBuilder: (_, __) => const SizedBox(height: 20),
+              separatorBuilder: (_, _) => const SizedBox(height: 20),
               itemBuilder: (context, index) {
                 final n = notifications[index];
                 return Dismissible(

@@ -1,4 +1,3 @@
-import 'dart:ui';
 import 'dart:io';
 import 'dart:convert';
 import 'package:flutter/material.dart';
@@ -9,7 +8,6 @@ import '../core/theme/app_colors.dart';
 import '../core/providers/settings_provider.dart';
 import '../core/providers/account_provider.dart';
 import '../core/services/local_storage_service.dart';
-import 'package:geolocator/geolocator.dart';
 import '../core/providers/notification_provider.dart';
 import 'dashboard/dashboard_page.dart';
 import 'dashboard/mfa_page.dart';
@@ -17,7 +15,6 @@ import 'security/security_page.dart';
 import 'settings/settings_page.dart';
 import 'notifications/notifications_page.dart';
 import '../services/location_provider.dart';
-import '../services/location_service.dart';
 
 class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
@@ -29,7 +26,6 @@ class HomeScreen extends StatefulWidget {
 class _HomeScreenState extends State<HomeScreen> {
   int _selectedIndex = 1; // Default to MFA page to showcase it
   final GlobalKey _avatarKey = GlobalKey();
-  bool _gpsEnabled = false; // Simulate GPS disabled initially
   
   List<String> _searchResults = [];
   bool _isSearching = false;
@@ -64,7 +60,7 @@ class _HomeScreenState extends State<HomeScreen> {
 
     showDialog(
       context: context,
-      barrierColor: Colors.black.withOpacity(0.05),
+      barrierColor: Colors.black.withValues(alpha: 0.05),
       builder: (context) => Stack(
         children: [
           Positioned(
@@ -125,10 +121,10 @@ class _HomeScreenState extends State<HomeScreen> {
                 decoration: BoxDecoration(
                   color: Colors.white,
                   borderRadius: BorderRadius.circular(9),
-                  border: Border.all(color: AppColors.primary.withOpacity(0.12), width: 1),
+                  border: Border.all(color: AppColors.primary.withValues(alpha: 0.12), width: 1),
                   boxShadow: [
                     BoxShadow(
-                      color: AppColors.primary.withOpacity(0.08),
+                      color: AppColors.primary.withValues(alpha: 0.08),
                       blurRadius: 6,
                       offset: const Offset(0, 2),
                     ),
@@ -173,7 +169,7 @@ class _HomeScreenState extends State<HomeScreen> {
                     shape: BoxShape.circle,
                     boxShadow: [
                       BoxShadow(
-                        color: AppColors.darkShadow.withOpacity(0.5),
+                        color: AppColors.darkShadow.withValues(alpha: 0.5),
                         offset: const Offset(2, 2),
                         blurRadius: 4,
                       ),
@@ -253,6 +249,8 @@ class _HomeScreenState extends State<HomeScreen> {
       final locationProvider = Provider.of<LocationProvider>(context, listen: false);
       await locationProvider.detectGPSLocation();
       
+      if (!mounted) return;
+
       if (locationProvider.errorMessage != null) {
         throw Exception(locationProvider.errorMessage);
       }
@@ -273,6 +271,7 @@ class _HomeScreenState extends State<HomeScreen> {
         throw Exception('Could not resolve location address.');
       }
     } catch (e) {
+      if (!mounted) return;
       provider.updateLocation('Manavalanagar, 602002');
       ScaffoldMessenger.of(context).clearSnackBars();
       ScaffoldMessenger.of(context).showSnackBar(
@@ -283,7 +282,9 @@ class _HomeScreenState extends State<HomeScreen> {
         ),
       );
     } finally {
-      setState(() => _isLocating = false);
+      if (mounted) {
+        setState(() => _isLocating = false);
+      }
     }
   }
 
@@ -369,9 +370,9 @@ class _HomeScreenState extends State<HomeScreen> {
       child: Container(
         padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
         decoration: BoxDecoration(
-          color: accentColor.withOpacity(0.08),
+          color: accentColor.withValues(alpha: 0.08),
           borderRadius: BorderRadius.circular(20),
-          border: Border.all(color: accentColor.withOpacity(0.3), width: 1),
+          border: Border.all(color: accentColor.withValues(alpha: 0.3), width: 1),
         ),
         child: Row(
           mainAxisSize: MainAxisSize.min,
@@ -417,10 +418,6 @@ class _HomeScreenState extends State<HomeScreen> {
       builder: (context) {
         return StatefulBuilder(
           builder: (context, setModalState) {
-            final filteredPlaces = popularPlaces
-                .where((place) => place.toLowerCase().contains(searchController.text.toLowerCase()))
-                .toList();
-
             return SingleChildScrollView(
               child: Padding(
                 padding: EdgeInsets.only(
@@ -540,7 +537,7 @@ class _HomeScreenState extends State<HomeScreen> {
                             );
                           },
                         );
-                      }).toList(),
+                      }),
                   ] else ...[
                     // Default State (Not Searching): Show Use Current Location & Popular Places
                     const Divider(),
@@ -567,7 +564,7 @@ class _HomeScreenState extends State<HomeScreen> {
                           );
                         },
                       );
-                    }).toList(),
+                    }),
                   ],
                 ],
               ),
@@ -585,7 +582,7 @@ class _HomeScreenState extends State<HomeScreen> {
         color: Colors.white,
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withOpacity(0.04),
+            color: Colors.black.withValues(alpha: 0.04),
             blurRadius: 10,
             offset: const Offset(0, -4),
           ),

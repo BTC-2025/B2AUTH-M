@@ -232,7 +232,7 @@ class _AuditTimelineScreenState extends State<AuditTimelineScreen> {
                             decoration: BoxDecoration(color: sevColor, shape: BoxShape.circle),
                           ),
                           Expanded(
-                            child: Container(width: 2, color: Colors.grey.withOpacity(0.3)),
+                            child: Container(width: 2, color: Colors.grey.withValues(alpha: 0.3)),
                           ),
                         ],
                       ),

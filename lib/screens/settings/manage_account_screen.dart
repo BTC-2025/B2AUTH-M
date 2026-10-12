@@ -1,7 +1,5 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
-import '../../core/theme/app_colors.dart';
-import '../../core/theme/app_text_styles.dart';
 import '../../core/providers/account_provider.dart';
 import '../../core/models/user_account.dart';
 import '../../widgets/profile_avatar.dart';
@@ -40,8 +38,8 @@ class _ManageAccountScreenState extends State<ManageAccountScreen>
   ];
 
   // Subscription State
-  String _subPlanName = 'Cliks Business';
-  String _subPrice = '\$29/month';
+  final String _subPlanName = 'Cliks Business';
+  final String _subPrice = '\$29/month';
   final String _subRenewalDate = 'Aug 15, 2026';
   String _subPaymentMethod = '•••• 4242 (Visa)';
   int _subTeamSeats = 25;
@@ -167,7 +165,7 @@ class _ManageAccountScreenState extends State<ManageAccountScreen>
         color: surfaceColor,
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withOpacity(0.05),
+            color: Colors.black.withValues(alpha: 0.05),
             blurRadius: 6,
             offset: const Offset(0, 2),
           ),
@@ -193,7 +191,7 @@ class _ManageAccountScreenState extends State<ManageAccountScreen>
               borderRadius: BorderRadius.circular(9),
               boxShadow: [
                 BoxShadow(
-                  color: _brandBlue.withOpacity(0.2),
+                  color: _brandBlue.withValues(alpha: 0.2),
                   blurRadius: 4,
                   offset: const Offset(0, 2),
                 ),
@@ -285,7 +283,7 @@ class _ManageAccountScreenState extends State<ManageAccountScreen>
                         color: isSelected ? null : const Color(0xFFF1F5F9),
                         borderRadius: BorderRadius.circular(20),
                         boxShadow: isSelected
-                            ? [BoxShadow(color: _brandBlue.withOpacity(0.3), blurRadius: 8, offset: const Offset(0, 3))]
+                            ? [BoxShadow(color: _brandBlue.withValues(alpha: 0.3), blurRadius: 8, offset: const Offset(0, 3))]
                             : null,
                       ),
                       child: Row(
@@ -356,10 +354,10 @@ class _ManageAccountScreenState extends State<ManageAccountScreen>
                         padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
                         decoration: BoxDecoration(
                           gradient: isSelected
-                              ? LinearGradient(colors: [_brandBlue.withOpacity(0.12), _brandBlueLight.withOpacity(0.06)])
+                              ? LinearGradient(colors: [_brandBlue.withValues(alpha: 0.12), _brandBlueLight.withValues(alpha: 0.06)])
                               : null,
                           borderRadius: BorderRadius.circular(14),
-                          border: isSelected ? Border.all(color: _brandBlue.withOpacity(0.2), width: 1) : null,
+                          border: isSelected ? Border.all(color: _brandBlue.withValues(alpha: 0.2), width: 1) : null,
                         ),
                         child: Row(
                           children: [
@@ -396,7 +394,7 @@ class _ManageAccountScreenState extends State<ManageAccountScreen>
                     child: Container(
                       padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
                       decoration: BoxDecoration(
-                        color: Colors.red.withOpacity(0.06),
+                        color: Colors.red.withValues(alpha: 0.06),
                         borderRadius: BorderRadius.circular(14),
                       ),
                       child: const Row(
@@ -513,17 +511,17 @@ class _ManageAccountScreenState extends State<ManageAccountScreen>
                 padding: const EdgeInsets.all(16),
                 decoration: BoxDecoration(
                   gradient: LinearGradient(
-                    colors: [_brandBlue.withOpacity(0.06), _brandBlueLight.withOpacity(0.03)],
+                    colors: [_brandBlue.withValues(alpha: 0.06), _brandBlueLight.withValues(alpha: 0.03)],
                   ),
                   borderRadius: BorderRadius.circular(14),
-                  border: Border.all(color: _brandBlue.withOpacity(0.12)),
+                  border: Border.all(color: _brandBlue.withValues(alpha: 0.12)),
                 ),
                 child: Row(
                   children: [
                     Container(
                       padding: const EdgeInsets.all(10),
                       decoration: BoxDecoration(
-                        color: _brandBlue.withOpacity(0.1),
+                        color: _brandBlue.withValues(alpha: 0.1),
                         borderRadius: BorderRadius.circular(12),
                       ),
                       child: const Icon(Icons.business_rounded, color: _brandBlue, size: 24),
@@ -637,7 +635,7 @@ class _ManageAccountScreenState extends State<ManageAccountScreen>
                         Container(
                           padding: const EdgeInsets.all(8),
                           decoration: BoxDecoration(
-                            color: _brandBlue.withOpacity(0.08),
+                            color: _brandBlue.withValues(alpha: 0.08),
                             borderRadius: BorderRadius.circular(10),
                           ),
                           child: const Icon(Icons.alternate_email_rounded, color: _brandBlue, size: 20),
@@ -695,7 +693,7 @@ class _ManageAccountScreenState extends State<ManageAccountScreen>
                           padding: const EdgeInsets.all(3),
                           decoration: BoxDecoration(
                             shape: BoxShape.circle,
-                            border: Border.all(color: _brandBlue.withOpacity(0.3), width: 2),
+                            border: Border.all(color: _brandBlue.withValues(alpha: 0.3), width: 2),
                           ),
                           child: ProfileAvatar(
                             letter: user.avatarLetter,
@@ -785,7 +783,7 @@ class _ManageAccountScreenState extends State<ManageAccountScreen>
             borderRadius: BorderRadius.circular(20),
             boxShadow: [
               BoxShadow(
-                color: _brandBlue.withOpacity(0.3),
+                color: _brandBlue.withValues(alpha: 0.3),
                 blurRadius: 16,
                 offset: const Offset(0, 6),
               ),
@@ -799,7 +797,7 @@ class _ManageAccountScreenState extends State<ManageAccountScreen>
                   Container(
                     padding: const EdgeInsets.all(10),
                     decoration: BoxDecoration(
-                      color: Colors.white.withOpacity(0.2),
+                      color: Colors.white.withValues(alpha: 0.2),
                       borderRadius: BorderRadius.circular(14),
                     ),
                     child: const Icon(Icons.workspace_premium_rounded, color: Colors.white, size: 26),
@@ -816,7 +814,7 @@ class _ManageAccountScreenState extends State<ManageAccountScreen>
                         const SizedBox(height: 2),
                         Text(
                           _subPrice,
-                          style: TextStyle(fontSize: 14, color: Colors.white.withOpacity(0.85)),
+                          style: TextStyle(fontSize: 14, color: Colors.white.withValues(alpha: 0.85)),
                         ),
                       ],
                     ),
@@ -824,7 +822,7 @@ class _ManageAccountScreenState extends State<ManageAccountScreen>
                   Container(
                     padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
                     decoration: BoxDecoration(
-                      color: Colors.white.withOpacity(0.2),
+                      color: Colors.white.withValues(alpha: 0.2),
                       borderRadius: BorderRadius.circular(20),
                     ),
                     child: const Text(
@@ -926,7 +924,7 @@ class _ManageAccountScreenState extends State<ManageAccountScreen>
                     Container(
                       padding: const EdgeInsets.all(10),
                       decoration: BoxDecoration(
-                        color: _brandBlue.withOpacity(0.1),
+                        color: _brandBlue.withValues(alpha: 0.1),
                         borderRadius: BorderRadius.circular(10),
                       ),
                       child: const Icon(Icons.credit_card_rounded, color: _brandBlue, size: 22),
@@ -945,7 +943,7 @@ class _ManageAccountScreenState extends State<ManageAccountScreen>
                     Container(
                       padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
                       decoration: BoxDecoration(
-                        color: _accentGreen.withOpacity(0.1),
+                        color: _accentGreen.withValues(alpha: 0.1),
                         borderRadius: BorderRadius.circular(8),
                       ),
                       child: const Text('DEFAULT', style: TextStyle(color: _accentGreen, fontSize: 10, fontWeight: FontWeight.bold)),
@@ -1044,7 +1042,7 @@ class _ManageAccountScreenState extends State<ManageAccountScreen>
             ),
             borderRadius: BorderRadius.circular(20),
             boxShadow: [
-              BoxShadow(color: _brandBlue.withOpacity(0.3), blurRadius: 16, offset: const Offset(0, 6)),
+              BoxShadow(color: _brandBlue.withValues(alpha: 0.3), blurRadius: 16, offset: const Offset(0, 6)),
             ],
           ),
           child: Column(
@@ -1055,7 +1053,7 @@ class _ManageAccountScreenState extends State<ManageAccountScreen>
                   Container(
                     padding: const EdgeInsets.all(12),
                     decoration: BoxDecoration(
-                      color: Colors.white.withOpacity(0.2),
+                      color: Colors.white.withValues(alpha: 0.2),
                       borderRadius: BorderRadius.circular(16),
                     ),
                     child: const Icon(Icons.security_rounded, color: Colors.white, size: 28),
@@ -1179,7 +1177,7 @@ class _ManageAccountScreenState extends State<ManageAccountScreen>
         ),
         borderRadius: BorderRadius.circular(20),
         boxShadow: [
-          BoxShadow(color: _brandBlue.withOpacity(0.25), blurRadius: 16, offset: const Offset(0, 6)),
+          BoxShadow(color: _brandBlue.withValues(alpha: 0.25), blurRadius: 16, offset: const Offset(0, 6)),
         ],
       ),
       child: Row(
@@ -1188,7 +1186,7 @@ class _ManageAccountScreenState extends State<ManageAccountScreen>
             padding: const EdgeInsets.all(2),
             decoration: BoxDecoration(
               shape: BoxShape.circle,
-              border: Border.all(color: Colors.white.withOpacity(0.5), width: 2),
+              border: Border.all(color: Colors.white.withValues(alpha: 0.5), width: 2),
             ),
             child: ProfileAvatar(
               letter: user.avatarLetter,
@@ -1211,7 +1209,7 @@ class _ManageAccountScreenState extends State<ManageAccountScreen>
                 const SizedBox(height: 2),
                 Text(
                   user.email,
-                  style: TextStyle(fontSize: 12, color: Colors.white.withOpacity(0.75), fontWeight: FontWeight.w500),
+                  style: TextStyle(fontSize: 12, color: Colors.white.withValues(alpha: 0.75), fontWeight: FontWeight.w500),
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
                 ),
@@ -1219,7 +1217,7 @@ class _ManageAccountScreenState extends State<ManageAccountScreen>
                 Container(
                   padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 3),
                   decoration: BoxDecoration(
-                    color: Colors.white.withOpacity(0.18),
+                    color: Colors.white.withValues(alpha: 0.18),
                     borderRadius: BorderRadius.circular(20),
                   ),
                   child: Text(
@@ -1232,7 +1230,7 @@ class _ManageAccountScreenState extends State<ManageAccountScreen>
           ),
           IconButton(
             onPressed: _handleSignOut,
-            icon: Icon(Icons.logout_rounded, color: Colors.white.withOpacity(0.7), size: 20),
+            icon: Icon(Icons.logout_rounded, color: Colors.white.withValues(alpha: 0.7), size: 20),
             tooltip: 'Sign Out',
           ),
         ],
@@ -1252,9 +1250,9 @@ class _ManageAccountScreenState extends State<ManageAccountScreen>
         color: Colors.white,
         borderRadius: BorderRadius.circular(20),
         boxShadow: [
-          BoxShadow(color: Colors.black.withOpacity(0.04), blurRadius: 12, offset: const Offset(0, 4)),
+          BoxShadow(color: Colors.black.withValues(alpha: 0.04), blurRadius: 12, offset: const Offset(0, 4)),
         ],
-        border: Border.all(color: const Color(0xFFE2E8F0).withOpacity(0.6)),
+        border: Border.all(color: const Color(0xFFE2E8F0).withValues(alpha: 0.6)),
       ),
       child: child,
     );
@@ -1266,7 +1264,7 @@ class _ManageAccountScreenState extends State<ManageAccountScreen>
         Container(
           padding: const EdgeInsets.all(8),
           decoration: BoxDecoration(
-            color: _brandBlue.withOpacity(0.08),
+            color: _brandBlue.withValues(alpha: 0.08),
             borderRadius: BorderRadius.circular(10),
           ),
           child: Icon(icon, color: _brandBlue, size: 18),
@@ -1337,7 +1335,7 @@ class _ManageAccountScreenState extends State<ManageAccountScreen>
                 Container(
                   padding: const EdgeInsets.all(10),
                   decoration: BoxDecoration(
-                    color: iconColor.withOpacity(0.1),
+                    color: iconColor.withValues(alpha: 0.1),
                     borderRadius: BorderRadius.circular(12),
                   ),
                   child: Icon(icon, color: iconColor, size: 22),
@@ -1369,9 +1367,9 @@ class _ManageAccountScreenState extends State<ManageAccountScreen>
       child: Container(
         padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
         decoration: BoxDecoration(
-          color: color.withOpacity(0.06),
+          color: color.withValues(alpha: 0.06),
           borderRadius: BorderRadius.circular(14),
-          border: Border.all(color: color.withOpacity(0.15)),
+          border: Border.all(color: color.withValues(alpha: 0.15)),
         ),
         child: Row(
           mainAxisSize: MainAxisSize.min,
@@ -1402,7 +1400,7 @@ class _ManageAccountScreenState extends State<ManageAccountScreen>
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Text(label, style: TextStyle(fontSize: 10, color: Colors.white.withOpacity(0.65), fontWeight: FontWeight.w500)),
+              Text(label, style: TextStyle(fontSize: 10, color: Colors.white.withValues(alpha: 0.65), fontWeight: FontWeight.w500)),
               Text(value, style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: Colors.white), maxLines: 1, overflow: TextOverflow.ellipsis),
             ],
           ),
@@ -1443,7 +1441,7 @@ class _ManageAccountScreenState extends State<ManageAccountScreen>
           Switch.adaptive(
             value: value,
             onChanged: onChanged,
-            activeColor: _brandBlue,
+            activeTrackColor: _brandBlue,
           ),
         ],
       ),

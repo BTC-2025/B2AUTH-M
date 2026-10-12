@@ -1,8 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
-import '../../core/theme/app_colors.dart';
 import '../../core/providers/account_provider.dart';
-import '../../core/providers/settings_provider.dart';
 import '../../core/models/user_account.dart';
 import '../../widgets/profile_avatar.dart';
 import 'linked_apps_page.dart';
@@ -38,7 +36,6 @@ class _DashboardPageState extends State<DashboardPage> {
   @override
   Widget build(BuildContext context) {
     final accountProvider = context.watch<AccountProvider>();
-    final settingsProvider = context.watch<SettingsProvider>();
     final selectedUser = accountProvider.selectedAccount;
 
     if (selectedUser == null) {
@@ -160,7 +157,7 @@ class _DashboardPageState extends State<DashboardPage> {
             border: Border.all(color: const Color(0xFFE5E7EB), width: 1),
             boxShadow: [
               BoxShadow(
-                color: Colors.black.withOpacity(0.02),
+                color: Colors.black.withValues(alpha: 0.02),
                 blurRadius: 10,
                 offset: const Offset(0, 4),
               ),
@@ -435,7 +432,7 @@ class _DashboardPageState extends State<DashboardPage> {
             : Border.all(color: const Color(0xFFE5E7EB), width: 1),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withOpacity(0.015),
+            color: Colors.black.withValues(alpha: 0.015),
             blurRadius: 6,
             offset: const Offset(0, 2),
           ),
@@ -557,7 +554,7 @@ class _DashboardPageState extends State<DashboardPage> {
         border: Border.all(color: const Color(0xFFE5E7EB), width: 1),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withOpacity(0.02),
+            color: Colors.black.withValues(alpha: 0.02),
             blurRadius: 10,
             offset: const Offset(0, 4),
           ),

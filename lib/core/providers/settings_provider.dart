@@ -121,7 +121,7 @@ class SettingsProvider with ChangeNotifier {
 
   void setAccentColor(Color color) {
     _accentColor = color;
-    LocalStorageService.setString('app_accent_color', color.value.toString());
+    LocalStorageService.setString('app_accent_color', color.toARGB32().toString());
     notifyListeners();
   }
 

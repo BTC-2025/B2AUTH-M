@@ -47,7 +47,7 @@ class ProfileAvatar extends StatelessWidget {
         width: size,
         height: size,
         fit: BoxFit.cover,
-        errorBuilder: (_, __, ___) => fallbackLetter(),
+        errorBuilder: (_, _, _) => fallbackLetter(),
       );
     } else if (imageUrl != null && imageUrl!.isNotEmpty) {
       final String fullUrl = imageUrl!.startsWith('http')
@@ -58,7 +58,7 @@ class ProfileAvatar extends StatelessWidget {
         width: size,
         height: size,
         fit: BoxFit.cover,
-        errorBuilder: (_, __, ___) => fallbackLetter(),
+        errorBuilder: (_, _, _) => fallbackLetter(),
       );
     } else {
       content = fallbackLetter();

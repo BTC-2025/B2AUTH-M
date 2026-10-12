@@ -6,7 +6,6 @@ import '../../widgets/neumorphic_card.dart';
 import '../../widgets/custom_button.dart';
 import '../../widgets/custom_textfield.dart';
 import '../../widgets/settings_tile.dart';
-import '../../widgets/profile_avatar.dart';
 import '../../core/theme/app_colors.dart';
 import '../../core/theme/app_text_styles.dart';
 import '../../core/providers/account_provider.dart';
@@ -82,84 +81,7 @@ class _SettingsPageState extends State<SettingsPage> {
     );
   }
 
-  void _showAddAccountDialog() {
-    final nameController = TextEditingController();
-    final emailController = TextEditingController();
-    
-    showDialog(
-      context: context,
-      builder: (ctx) => AlertDialog(
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(24)),
-        title: const Text('Add Account'),
-        content: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            TextField(
-              controller: nameController,
-              decoration: const InputDecoration(
-                labelText: 'Full Name',
-                hintText: 'John Doe',
-              ),
-            ),
-            const SizedBox(height: 12),
-            TextField(
-              controller: emailController,
-              decoration: const InputDecoration(
-                labelText: 'Email Address',
-                hintText: 'john.doe@company.com',
-              ),
-            ),
-          ],
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(ctx),
-            child: const Text('Cancel'),
-          ),
-          ElevatedButton(
-            onPressed: () {
-              if (nameController.text.isNotEmpty && emailController.text.isNotEmpty) {
-                final accountProvider = context.read<AccountProvider>();
-                final uniqueId = DateTime.now().millisecondsSinceEpoch.toString();
-                final newAcc = UserAccount(
-                  id: uniqueId,
-                  name: nameController.text,
-                  displayName: nameController.text.split(' ')[0],
-                  username: nameController.text.replaceAll(' ', '').toLowerCase(),
-                  email: emailController.text,
-                  avatarLetter: nameController.text.substring(0, 1).toUpperCase(),
-                  type: AccountType.personal,
-                  createdAt: DateTime.now(),
-                  lastUsed: DateTime.now(),
-                  securityScore: 85,
-                  storageUsage: 0.1,
-                );
-                accountProvider.addAccount(newAcc);
-                accountProvider.switchAccount(newAcc.id);
-                
-                // Update text controllers for new account
-                setState(() {
-                  _emailController.text = newAcc.email;
-                  _phoneController.text = '+91 9876543210';
-                  _isEditing = false;
-                });
-                
-                Navigator.pop(ctx);
-                _showActionFeedback('Account ${newAcc.email} added!');
-              } else {
-                _showActionFeedback('Please enter name and email');
-              }
-            },
-            style: ElevatedButton.styleFrom(
-              backgroundColor: AppColors.primary,
-              foregroundColor: Colors.white,
-            ),
-            child: const Text('Add'),
-          ),
-        ],
-      ),
-    );
-  }
+
 
   void _showSignOutDialog() {
     context.read<AccountProvider>().clearAccounts();
@@ -201,7 +123,7 @@ class _SettingsPageState extends State<SettingsPage> {
                       title: const Text('Enable Home Screen Widget', style: TextStyle(fontSize: 14, fontWeight: FontWeight.bold)),
                       subtitle: const Text('Enable widgets for quick verification lookup.', style: TextStyle(fontSize: 12)),
                       value: settings.enableHomeScreenWidget,
-                      activeColor: settings.accentColor,
+                      activeThumbColor: settings.accentColor,
                       contentPadding: EdgeInsets.zero,
                       onChanged: (val) {
                         settings.setEnableHomeScreenWidget(val);
@@ -212,7 +134,7 @@ class _SettingsPageState extends State<SettingsPage> {
                       title: const Text('Show Hidden/Masked Codes', style: TextStyle(fontSize: 14, fontWeight: FontWeight.bold)),
                       subtitle: const Text('Obscure widget codes until tapped.', style: TextStyle(fontSize: 12)),
                       value: settings.showHiddenMaskedCodes,
-                      activeColor: settings.accentColor,
+                      activeThumbColor: settings.accentColor,
                       contentPadding: EdgeInsets.zero,
                       onChanged: (val) {
                         settings.setShowHiddenMaskedCodes(val);
@@ -280,12 +202,14 @@ class _SettingsPageState extends State<SettingsPage> {
     showDialog(
       context: context,
       barrierDismissible: false,
-      builder: (context) {
+      builder: (dialogCtx) {
         Future.delayed(const Duration(seconds: 2), () {
-          if (mounted && Navigator.canPop(context)) {
+          if (dialogCtx.mounted && Navigator.canPop(dialogCtx)) {
             settings.setWearOsSynced(true);
-            Navigator.pop(context);
-            _showActionFeedback('Synced successfully with Smart Watch!');
+            Navigator.pop(dialogCtx);
+            if (mounted) {
+              _showActionFeedback('Synced successfully with Smart Watch!');
+            }
           }
         });
         
@@ -312,11 +236,13 @@ class _SettingsPageState extends State<SettingsPage> {
     showDialog(
       context: context,
       barrierDismissible: false,
-      builder: (context) {
+      builder: (dialogCtx) {
         Future.delayed(const Duration(seconds: 2), () {
-          if (mounted && Navigator.canPop(context)) {
-            Navigator.pop(context);
-            _showActionFeedback('App data synced and refreshed!');
+          if (dialogCtx.mounted && Navigator.canPop(dialogCtx)) {
+            Navigator.pop(dialogCtx);
+            if (mounted) {
+              _showActionFeedback('App data synced and refreshed!');
+            }
           }
         });
         
@@ -467,7 +393,7 @@ class _SettingsPageState extends State<SettingsPage> {
                       settingsProvider.toggleAppLock(val);
                       _showActionFeedback(val ? 'App lock enabled' : 'App lock disabled');
                     },
-                    activeColor: settingsProvider.accentColor,
+                    activeThumbColor: settingsProvider.accentColor,
                   ),
                   showDivider: true,
                 ),
@@ -577,118 +503,7 @@ class _SettingsPageState extends State<SettingsPage> {
     );
   }
 
-  Widget _buildProfileHeader(dynamic user) {
-    return NeumorphicCard(
-      child: Column(
-        children: [
-          Row(
-            children: [
-              ProfileAvatar(
-                letter: user.avatarLetter,
-                size: 64,
-                imagePath: user.profileImagePath,
-                imageUrl: user.avatarUrl,
-              ),
-              const SizedBox(width: 16),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Row(
-                      children: [
-                        Expanded(
-                          child: Text(
-                            user.name,
-                            maxLines: 1,
-                            overflow: TextOverflow.ellipsis,
-                            style: const TextStyle(
-                              fontSize: 18,
-                              fontWeight: FontWeight.bold,
-                              color: AppColors.textPrimary,
-                            ),
-                          ),
-                        ),
-                        IconButton(
-                          onPressed: () => Navigator.push(
-                            context,
-                            MaterialPageRoute(builder: (_) => const EditProfileScreen()),
-                          ),
-                          icon: const Icon(Icons.edit_outlined, size: 20),
-                          padding: EdgeInsets.zero,
-                          constraints: const BoxConstraints(),
-                        ),
-                      ],
-                    ),
-                    const SizedBox(height: 4),
-                    DropdownButtonHideUnderline(
-                      child: DropdownButton<String>(
-                        value: user.id,
-                        isDense: true,
-                        isExpanded: true,
-                        dropdownColor: Colors.white,
-                        icon: const Icon(Icons.keyboard_arrow_down, color: AppColors.textSecondary, size: 16),
-                        style: AppTextStyles.caption.copyWith(fontWeight: FontWeight.bold),
-                        onChanged: (String? newValue) {
-                          if (newValue != null && newValue != user.id) {
-                            context.read<AccountProvider>().switchAccount(newValue);
-                            setState(() {
-                              _emailController.text = LocalStorageService.getString('recovery_email_$newValue') ?? 
-                                  context.read<AccountProvider>().accounts.firstWhere((a) => a.id == newValue).email;
-                              _phoneController.text = LocalStorageService.getString('recovery_phone_$newValue') ?? '+91 9876543210';
-                              _isEditing = false;
-                            });
-                          }
-                        },
-                        items: context.watch<AccountProvider>().accounts.map((UserAccount account) {
-                          return DropdownMenuItem<String>(
-                            value: account.id,
-                            child: Text(
-                              account.email,
-                              maxLines: 1,
-                              overflow: TextOverflow.ellipsis,
-                              style: const TextStyle(color: AppColors.textPrimary),
-                            ),
-                          );
-                        }).toList(),
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-            ],
-          ),
-          const SizedBox(height: 16),
-          Row(
-            children: [
-              const Icon(Icons.dns_outlined, size: 16, color: AppColors.textSecondary),
-              const SizedBox(width: 8),
-              Expanded(
-                child: RichText(
-                  overflow: TextOverflow.ellipsis,
-                  maxLines: 1,
-                  text: TextSpan(
-                    style: AppTextStyles.caption,
-                    children: [
-                      const TextSpan(text: 'Your account is in the '),
-                      TextSpan(text: 'India', style: const TextStyle(color: AppColors.primary, fontWeight: FontWeight.bold)),
-                      const TextSpan(text: ' data center'),
-                    ],
-                  ),
-                ),
-              ),
-            ],
-          ),
-          const SizedBox(height: 24),
-          CustomButton(
-            text: 'Add Account', 
-            onPressed: _showAddAccountDialog,
-            isFullWidth: true, 
-            isPremium: true
-          ),
-        ],
-      ),
-    );
-  }
+
 
   Widget _buildQuickActionTile(IconData icon, String title, Color color, VoidCallback onTap) {
     return NeumorphicCard(

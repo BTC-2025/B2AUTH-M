@@ -100,7 +100,7 @@ class _ActiveSessionsScreenState extends State<ActiveSessionsScreen> {
                             Container(
                               padding: const EdgeInsets.all(10),
                               decoration: BoxDecoration(
-                                color: isCurrent ? AppColors.success.withOpacity(0.1) : AppColors.primary.withOpacity(0.08),
+                                color: isCurrent ? AppColors.success.withValues(alpha: 0.1) : AppColors.primary.withValues(alpha: 0.08),
                                 borderRadius: BorderRadius.circular(12),
                               ),
                               child: Icon(

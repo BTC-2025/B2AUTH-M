@@ -1,14 +1,10 @@
-import 'dart:convert';
-import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:flutter_map/flutter_map.dart';
 import 'package:latlong2/latlong.dart';
-import 'package:geolocator/geolocator.dart';
 import '../../core/theme/app_colors.dart';
 import '../../core/providers/account_provider.dart';
 import '../../services/location_provider.dart';
-import '../../services/location_service.dart';
 
 class SessionsMapScreen extends StatefulWidget {
   const SessionsMapScreen({super.key});
@@ -50,7 +46,7 @@ class _SessionsMapScreenState extends State<SessionsMapScreen> {
         context.read<AccountProvider>().updateLocation(resolvedLocation);
       }
     } catch (e) {
-      print('Failed to locate in real time: $e');
+      debugPrint('Failed to locate in real time: $e');
     } finally {
       if (mounted) {
         setState(() => _isLocating = false);
@@ -134,7 +130,7 @@ class _SessionsMapScreenState extends State<SessionsMapScreen> {
                               borderRadius: BorderRadius.circular(8),
                               boxShadow: [
                                 BoxShadow(
-                                  color: Colors.black.withOpacity(0.15),
+                                  color: Colors.black.withValues(alpha: 0.15),
                                   blurRadius: 6,
                                   offset: const Offset(0, 2),
                                 ),
@@ -154,7 +150,7 @@ class _SessionsMapScreenState extends State<SessionsMapScreen> {
                               border: Border.all(color: Colors.white, width: 2),
                               boxShadow: [
                                 BoxShadow(
-                                  color: AppColors.success.withOpacity(0.3),
+                                  color: AppColors.success.withValues(alpha: 0.3),
                                   blurRadius: 6,
                                   spreadRadius: 1,
                                 ),
@@ -235,7 +231,7 @@ class _SessionsMapScreenState extends State<SessionsMapScreen> {
                 borderRadius: BorderRadius.circular(24),
                 boxShadow: [
                   BoxShadow(
-                    color: Colors.black.withOpacity(0.08),
+                    color: Colors.black.withValues(alpha: 0.08),
                     blurRadius: 16,
                     offset: const Offset(0, 4),
                   ),

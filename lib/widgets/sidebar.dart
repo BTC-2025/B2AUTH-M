@@ -73,10 +73,10 @@ class Sidebar extends StatelessWidget {
                     decoration: BoxDecoration(
                       color: Colors.white,
                       borderRadius: BorderRadius.circular(9),
-                      border: Border.all(color: AppColors.primary.withOpacity(0.12), width: 1),
+                      border: Border.all(color: AppColors.primary.withValues(alpha: 0.12), width: 1),
                       boxShadow: [
                         BoxShadow(
-                          color: AppColors.primary.withOpacity(0.08),
+                          color: AppColors.primary.withValues(alpha: 0.08),
                           blurRadius: 6,
                           offset: const Offset(0, 2),
                         ),

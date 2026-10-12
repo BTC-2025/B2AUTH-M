@@ -56,7 +56,7 @@ class PolicyRuleCard extends StatelessWidget {
               Container(
                 padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
                 decoration: BoxDecoration(
-                  color: AppColors.primaryBlue.withOpacity(0.1),
+                  color: AppColors.primaryBlue.withValues(alpha: 0.1),
                   borderRadius: BorderRadius.circular(6),
                 ),
                 child: Text(
@@ -72,7 +72,7 @@ class PolicyRuleCard extends StatelessWidget {
               Switch(
                 value: policy.isEnabled,
                 onChanged: onToggle,
-                activeColor: AppColors.primaryBlue,
+                activeThumbColor: AppColors.primaryBlue,
               ),
               IconButton(
                 icon: const Icon(Icons.close_rounded, size: 18, color: AppColors.textSecondary),
@@ -101,7 +101,7 @@ class PolicyRuleCard extends StatelessWidget {
               Container(
                 padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
                 decoration: BoxDecoration(
-                  color: Colors.grey.withOpacity(0.12),
+                  color: Colors.grey.withValues(alpha: 0.12),
                   borderRadius: BorderRadius.circular(6),
                 ),
                 child: Row(
@@ -122,9 +122,9 @@ class PolicyRuleCard extends StatelessWidget {
               Container(
                 padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
                 decoration: BoxDecoration(
-                  color: actionColor.withOpacity(0.15),
+                  color: actionColor.withValues(alpha: 0.15),
                   borderRadius: BorderRadius.circular(6),
-                  border: Border.all(color: actionColor.withOpacity(0.3)),
+                  border: Border.all(color: actionColor.withValues(alpha: 0.3)),
                 ),
                 child: Row(
                   mainAxisSize: MainAxisSize.min,

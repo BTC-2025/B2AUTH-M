@@ -2,7 +2,6 @@ import 'package:flutter/material.dart';
 import '../models/user_account.dart';
 import '../services/local_storage_service.dart';
 import '../services/user_profile_api_service.dart';
-import 'package:uuid/uuid.dart';
 
 class AccountProvider with ChangeNotifier {
   List<UserAccount> _accounts = [];

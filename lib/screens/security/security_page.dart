@@ -10,7 +10,6 @@ import '../../core/theme/app_colors.dart';
 import '../../core/theme/app_text_styles.dart';
 import '../../core/providers/security_provider.dart';
 import '../../core/providers/account_provider.dart';
-import '../../core/providers/settings_provider.dart';
 import '../../core/services/auth_api_service.dart';
 import '../../core/services/security_api_service.dart';
 import '../../core/services/local_storage_service.dart';
@@ -211,8 +210,8 @@ class _SecurityPageState extends State<SecurityPage> {
 
     showDialog(
       context: context,
-      builder: (context) => StatefulBuilder(
-        builder: (context, setDialogState) => AlertDialog(
+      builder: (dialogCtx) => StatefulBuilder(
+        builder: (modalCtx, setDialogState) => AlertDialog(
           scrollable: true,
           shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(24)),
           backgroundColor: AppColors.background,
@@ -222,7 +221,7 @@ class _SecurityPageState extends State<SecurityPage> {
               Container(
                 padding: const EdgeInsets.all(10),
                 decoration: BoxDecoration(
-                  color: AppColors.primary.withOpacity(0.1),
+                  color: AppColors.primary.withValues(alpha: 0.1),
                   borderRadius: BorderRadius.circular(14),
                 ),
                 child: const Icon(Icons.lock_reset_rounded, color: AppColors.primary, size: 24),
@@ -300,7 +299,7 @@ class _SecurityPageState extends State<SecurityPage> {
         ),
           actions: [
             TextButton(
-              onPressed: () => Navigator.pop(context),
+              onPressed: () => Navigator.pop(modalCtx),
               child: const Text('Cancel', style: TextStyle(color: AppColors.textSecondary, fontWeight: FontWeight.bold)),
             ),
             ElevatedButton(
@@ -313,8 +312,10 @@ class _SecurityPageState extends State<SecurityPage> {
                     oldPassword: oldController.text.trim(),
                     newPassword: newController.text.trim(),
                   );
+                  if (modalCtx.mounted) {
+                    Navigator.pop(modalCtx);
+                  }
                   if (mounted) {
-                    Navigator.pop(context);
                     if (response.success) {
                       _showFeedback(response.message.isNotEmpty ? response.message : 'Password changed successfully!');
                     } else {
@@ -350,8 +351,8 @@ class _SecurityPageState extends State<SecurityPage> {
     showDialog(
       context: context,
       barrierDismissible: false,
-      builder: (context) => StatefulBuilder(
-        builder: (context, setDialogState) {
+      builder: (dialogCtx) => StatefulBuilder(
+        builder: (modalCtx, setDialogState) {
           if (isLoadingSetup && secretKey == 'HU06CBW3Z3UJ2ZVF23H5QWQQUNH7KARY') {
             final token = context.read<AuthNotifier>().accessToken ?? LocalStorageService.getString('access_token') ?? '';
             _securityApiService.setup2Fa(token).then((setupRes) {
@@ -394,7 +395,7 @@ class _SecurityPageState extends State<SecurityPage> {
                   icon: const Icon(Icons.close, size: 20, color: AppColors.textSecondary),
                   padding: EdgeInsets.zero,
                   constraints: const BoxConstraints(),
-                  onPressed: () => Navigator.pop(context),
+                  onPressed: () => Navigator.pop(modalCtx),
                 ),
               ],
             ),
@@ -424,7 +425,7 @@ class _SecurityPageState extends State<SecurityPage> {
                         border: Border.all(color: Colors.grey.shade200),
                         boxShadow: [
                           BoxShadow(
-                            color: Colors.black.withOpacity(0.04),
+                            color: Colors.black.withValues(alpha: 0.04),
                             blurRadius: 10,
                             offset: const Offset(0, 4),
                           ),
@@ -525,10 +526,12 @@ class _SecurityPageState extends State<SecurityPage> {
                               final token = context.read<AuthNotifier>().accessToken ?? LocalStorageService.getString('access_token') ?? '';
                               final verifyRes = await _securityApiService.verify2Fa(accessToken: token, code: code);
                               
-                              if (mounted) {
+                              if (modalCtx.mounted) {
                                 setDialogState(() => isVerifying = false);
-                                context.read<SecurityProvider>().enable2FA();
-                                Navigator.pop(context);
+                                modalCtx.read<SecurityProvider>().enable2FA();
+                                Navigator.pop(modalCtx);
+                              }
+                              if (mounted) {
                                 _showFeedback(verifyRes.success ? 'Authenticator 2FA successfully configured!' : 'Authenticator 2FA enabled successfully!');
                               }
                             },
@@ -616,7 +619,7 @@ class _SecurityPageState extends State<SecurityPage> {
                       child: CircularProgressIndicator(
                         value: security.score / 100,
                         strokeWidth: 6,
-                        backgroundColor: AppColors.primary.withOpacity(0.1),
+                        backgroundColor: AppColors.primary.withValues(alpha: 0.1),
                         valueColor: AlwaysStoppedAnimation<Color>(
                           security.score > 80 ? AppColors.success : AppColors.warning,
                         ),
@@ -676,7 +679,7 @@ class _SecurityPageState extends State<SecurityPage> {
                     Container(
                       padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
                       decoration: BoxDecoration(
-                        color: AppColors.primary.withOpacity(0.1),
+                        color: AppColors.primary.withValues(alpha: 0.1),
                         borderRadius: BorderRadius.circular(12),
                       ),
                       child: Text(
@@ -712,7 +715,7 @@ class _SecurityPageState extends State<SecurityPage> {
                   description: security.is2FAEnabled ? 'Active (Recommended)' : 'Not configured',
                   trailing: Switch.adaptive(
                     value: security.is2FAEnabled,
-                    activeColor: AppColors.primary,
+                    activeTrackColor: AppColors.primary,
                     onChanged: (val) async {
                       if (val) {
                         _showAuthenticatorWizard();
@@ -734,7 +737,7 @@ class _SecurityPageState extends State<SecurityPage> {
                       : (userPhone.isNotEmpty ? 'Configured ($userPhone)' : 'Disabled'),
                   trailing: Switch.adaptive(
                     value: security.isSMSEnabled,
-                    activeColor: AppColors.primary,
+                    activeTrackColor: AppColors.primary,
                     onChanged: (val) {
                       if (val) {
                         _showSmsWizard();
@@ -752,7 +755,7 @@ class _SecurityPageState extends State<SecurityPage> {
                   description: security.isBiometricsEnabled ? 'Fingerprint & Face ID active' : 'Disabled',
                   trailing: Switch.adaptive(
                     value: security.isBiometricsEnabled,
-                    activeColor: AppColors.primary,
+                    activeTrackColor: AppColors.primary,
                     onChanged: (val) {
                       security.toggleBiometrics(val);
                       _showFeedback(val ? 'Biometrics activated' : 'Biometrics deactivated');
@@ -821,7 +824,7 @@ class _SecurityPageState extends State<SecurityPage> {
                     child: Text('No active sessions found.', style: TextStyle(color: AppColors.textSecondary)),
                   ),
                 ] else ...[
-                  ...displayedDevices.map((device) => _buildDeviceItem(device)).toList(),
+                  ...displayedDevices.map((device) => _buildDeviceItem(device)),
                   if (_devices.length > 5) ...[
                     const Divider(height: 16),
                     TextButton.icon(
@@ -920,7 +923,7 @@ class _SecurityPageState extends State<SecurityPage> {
         Container(
           padding: const EdgeInsets.all(10),
           decoration: BoxDecoration(
-            color: AppColors.primary.withOpacity(0.08),
+            color: AppColors.primary.withValues(alpha: 0.08),
             borderRadius: BorderRadius.circular(12),
           ),
           child: const Icon(Icons.phonelink_lock, color: AppColors.primary, size: 22),
@@ -961,7 +964,7 @@ class _SecurityPageState extends State<SecurityPage> {
           Container(
             padding: const EdgeInsets.all(8),
             decoration: BoxDecoration(
-              color: isCurrent ? AppColors.success.withOpacity(0.1) : AppColors.primary.withOpacity(0.08),
+              color: isCurrent ? AppColors.success.withValues(alpha: 0.1) : AppColors.primary.withValues(alpha: 0.08),
               borderRadius: BorderRadius.circular(10),
             ),
             child: Icon(
@@ -1016,7 +1019,7 @@ class _SecurityPageState extends State<SecurityPage> {
           Container(
             padding: const EdgeInsets.all(8),
             decoration: BoxDecoration(
-              color: AppColors.primary.withOpacity(0.08),
+              color: AppColors.primary.withValues(alpha: 0.08),
               borderRadius: BorderRadius.circular(10),
             ),
             child: const Icon(Icons.apps_rounded, color: AppColors.primary, size: 20),
@@ -1079,7 +1082,7 @@ class _SecurityPageState extends State<SecurityPage> {
         width: 160,
         height: 160,
         fit: BoxFit.contain,
-        errorBuilder: (_, __, ___) => const Icon(Icons.qr_code_2, size: 130, color: AppColors.textPrimary),
+        errorBuilder: (_, _, _) => const Icon(Icons.qr_code_2, size: 130, color: AppColors.textPrimary),
       );
     }
 

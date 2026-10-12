@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'core/theme/app_theme.dart';
-import 'screens/home_screen.dart';
 import 'screens/splash_screen.dart';
 import 'core/services/local_storage_service.dart';
 import 'core/providers/account_provider.dart';
@@ -12,10 +11,7 @@ import 'core/providers/threat_provider.dart';
 import 'core/providers/passkey_provider.dart';
 import 'core/providers/zero_trust_provider.dart';
 import 'services/location_provider.dart';
-
 import 'screens/auth/notifiers/auth_notifier.dart';
-
-import 'screens/auth/login_screen.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -50,7 +46,7 @@ class B2AuthApp extends StatelessWidget {
       title: 'B2Auth Dashboard',
       debugShowCheckedModeBanner: false,
       theme: AppTheme.lightTheme,
-      darkTheme: ThemeData.dark(), // TODO: Implement proper dark theme if needed
+      darkTheme: AppTheme.darkTheme,
       themeMode: settings.themeMode,
       home: const SplashScreen(),
     );

@@ -1,4 +1,4 @@
-package com.example.b2auth
+package com.b2auth.com
 
 import io.flutter.embedding.android.FlutterActivity
 

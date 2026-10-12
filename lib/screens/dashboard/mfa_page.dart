@@ -119,7 +119,7 @@ class _MfaPageState extends State<MfaPage> {
                     onChanged: (val) {
                       security.togglePasswordless(val);
                     },
-                    activeColor: AppColors.primary,
+                    activeThumbColor: AppColors.primary,
                   ),
                   SwitchListTile(
                     title: const Text('Push Notification'),
@@ -128,7 +128,7 @@ class _MfaPageState extends State<MfaPage> {
                     onChanged: (val) {
                       security.togglePushNotification(val);
                     },
-                    activeColor: AppColors.primary,
+                    activeThumbColor: AppColors.primary,
                   ),
                   SwitchListTile(
                     title: const Text('Fingerprint'),
@@ -137,7 +137,7 @@ class _MfaPageState extends State<MfaPage> {
                     onChanged: (val) {
                       security.toggleFingerprint(val);
                     },
-                    activeColor: AppColors.primary,
+                    activeThumbColor: AppColors.primary,
                   ),
                 ],
               ),
@@ -162,12 +162,12 @@ class _MfaPageState extends State<MfaPage> {
     showDialog(
       context: context,
       barrierDismissible: false,
-      builder: (context) {
+      builder: (dialogCtx) {
         return StatefulBuilder(
-          builder: (context, setDialogState) {
+          builder: (modalCtx, setDialogState) {
             if (step == 1) {
               Future.delayed(const Duration(milliseconds: 2500), () {
-                if (mounted && Navigator.canPop(context)) {
+                if (modalCtx.mounted && Navigator.canPop(modalCtx)) {
                   setDialogState(() {
                     step = 2;
                   });
@@ -248,13 +248,13 @@ class _MfaPageState extends State<MfaPage> {
               actions: [
                 if (step < 3)
                   TextButton(
-                    onPressed: () => Navigator.pop(context),
+                    onPressed: () => Navigator.pop(modalCtx),
                     child: const Text('Cancel'),
                   ),
                 if (step == 2)
                   ElevatedButton(
                     onPressed: () {
-                      final accountProvider = context.read<AccountProvider>();
+                      final accountProvider = modalCtx.read<AccountProvider>();
                       final exists = accountProvider.accounts.any((a) => a.email == detectedEmail);
                       if (!exists) {
                         final newAcc = UserAccount(
@@ -284,7 +284,7 @@ class _MfaPageState extends State<MfaPage> {
                   ),
                 if (step == 3)
                   TextButton(
-                    onPressed: () => Navigator.pop(context),
+                    onPressed: () => Navigator.pop(modalCtx),
                     child: const Text('Close'),
                   ),
               ],
@@ -345,13 +345,13 @@ class _MfaPageState extends State<MfaPage> {
         borderRadius: BorderRadius.circular(24),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withOpacity(0.04),
+            color: Colors.black.withValues(alpha: 0.04),
             blurRadius: 12,
             offset: const Offset(0, 4),
           ),
         ],
         border: Border.all(
-          color: hasPassphrase ? AppColors.success.withOpacity(0.3) : Colors.amber.withOpacity(0.3),
+          color: hasPassphrase ? AppColors.success.withValues(alpha: 0.3) : Colors.amber.withValues(alpha: 0.3),
           width: 1,
         ),
       ),
@@ -361,7 +361,7 @@ class _MfaPageState extends State<MfaPage> {
           Container(
             padding: const EdgeInsets.all(10),
             decoration: BoxDecoration(
-              color: hasPassphrase ? AppColors.success.withOpacity(0.1) : Colors.amber.withOpacity(0.1),
+              color: hasPassphrase ? AppColors.success.withValues(alpha: 0.1) : Colors.amber.withValues(alpha: 0.1),
               shape: BoxShape.circle,
             ),
             child: Icon(
@@ -392,7 +392,7 @@ class _MfaPageState extends State<MfaPage> {
                     Container(
                       padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
                       decoration: BoxDecoration(
-                        color: hasPassphrase ? AppColors.success.withOpacity(0.12) : Colors.amber.withOpacity(0.12),
+                        color: hasPassphrase ? AppColors.success.withValues(alpha: 0.12) : Colors.amber.withValues(alpha: 0.12),
                         borderRadius: BorderRadius.circular(12),
                       ),
                       child: Text(
@@ -448,9 +448,9 @@ class _MfaPageState extends State<MfaPage> {
     return Container(
       width: double.infinity,
       decoration: BoxDecoration(
-        color: Colors.amber.withOpacity(0.04),
+        color: Colors.amber.withValues(alpha: 0.04),
         borderRadius: BorderRadius.circular(24),
-        border: Border.all(color: Colors.amber.withOpacity(0.3), width: 1.2),
+        border: Border.all(color: Colors.amber.withValues(alpha: 0.3), width: 1.2),
       ),
       child: Material(
         color: Colors.transparent,
@@ -472,7 +472,7 @@ class _MfaPageState extends State<MfaPage> {
                 Container(
                   padding: const EdgeInsets.all(8),
                   decoration: BoxDecoration(
-                    color: Colors.amber.withOpacity(0.12),
+                    color: Colors.amber.withValues(alpha: 0.12),
                     shape: BoxShape.circle,
                   ),
                   child: Icon(
@@ -509,7 +509,7 @@ class _MfaPageState extends State<MfaPage> {
                         'Set up a recovery option to guarantee account access if you get locked out.',
                         style: TextStyle(
                           fontSize: 12,
-                          color: Colors.amber.shade900.withOpacity(0.8),
+                          color: Colors.amber.shade900.withValues(alpha: 0.8),
                           height: 1.3,
                         ),
                       ),
@@ -533,7 +533,7 @@ class _MfaPageState extends State<MfaPage> {
         borderRadius: BorderRadius.circular(24),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withOpacity(0.04),
+            color: Colors.black.withValues(alpha: 0.04),
             blurRadius: 10,
             offset: const Offset(0, 4),
           ),
@@ -551,9 +551,9 @@ class _MfaPageState extends State<MfaPage> {
                 child: Container(
                   padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
                   decoration: BoxDecoration(
-                    color: AppColors.success.withOpacity(0.1),
+                    color: AppColors.success.withValues(alpha: 0.1),
                     borderRadius: BorderRadius.circular(10),
-                    border: Border.all(color: AppColors.success.withOpacity(0.3)),
+                    border: Border.all(color: AppColors.success.withValues(alpha: 0.3)),
                   ),
                   child: Row(
                     mainAxisSize: MainAxisSize.min,
@@ -583,7 +583,7 @@ class _MfaPageState extends State<MfaPage> {
                 child: Container(
                   padding: const EdgeInsets.all(6),
                   decoration: BoxDecoration(
-                    color: AppColors.primary.withOpacity(0.08),
+                    color: AppColors.primary.withValues(alpha: 0.08),
                     shape: BoxShape.circle,
                   ),
                   child: const Icon(Icons.tune_rounded, color: AppColors.primary, size: 18),
@@ -715,7 +715,7 @@ class _MfaPageState extends State<MfaPage> {
                 shrinkWrap: true,
                 physics: const NeverScrollableScrollPhysics(),
                 itemCount: items.length,
-                separatorBuilder: (_, __) => const SizedBox(height: 10),
+                separatorBuilder: (_, _) => const SizedBox(height: 10),
                 itemBuilder: (context, index) => items[index],
               );
             },
@@ -738,7 +738,7 @@ class _MfaPageState extends State<MfaPage> {
           Container(
             padding: const EdgeInsets.all(6),
             decoration: BoxDecoration(
-              color: AppColors.primary.withOpacity(0.1),
+              color: AppColors.primary.withValues(alpha: 0.1),
               shape: BoxShape.circle,
             ),
             child: Icon(icon, color: AppColors.primary, size: 18),
@@ -757,7 +757,7 @@ class _MfaPageState extends State<MfaPage> {
           Container(
             padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
             decoration: BoxDecoration(
-              color: AppColors.success.withOpacity(0.12),
+              color: AppColors.success.withValues(alpha: 0.12),
               borderRadius: BorderRadius.circular(6),
             ),
             child: const Text(
@@ -774,10 +774,10 @@ class _MfaPageState extends State<MfaPage> {
     return Container(
       width: double.infinity,
       decoration: BoxDecoration(
-        color: AppColors.primary.withOpacity(0.06),
+        color: AppColors.primary.withValues(alpha: 0.06),
         borderRadius: BorderRadius.circular(24),
         border: Border.all(
-          color: AppColors.primary.withOpacity(0.2),
+          color: AppColors.primary.withValues(alpha: 0.2),
           width: 1,
         ),
       ),
@@ -848,7 +848,7 @@ class _MfaPageState extends State<MfaPage> {
         borderRadius: BorderRadius.circular(24),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withOpacity(0.04),
+            color: Colors.black.withValues(alpha: 0.04),
             blurRadius: 10,
             offset: const Offset(0, 4),
           ),
@@ -861,7 +861,7 @@ class _MfaPageState extends State<MfaPage> {
             leading: Container(
               padding: const EdgeInsets.all(8),
               decoration: BoxDecoration(
-                color: AppColors.primary.withOpacity(0.08),
+                color: AppColors.primary.withValues(alpha: 0.08),
                 shape: BoxShape.circle,
               ),
               child: const Icon(Icons.smartphone_rounded, color: AppColors.primary, size: 20),
@@ -881,7 +881,7 @@ class _MfaPageState extends State<MfaPage> {
             leading: Container(
               padding: const EdgeInsets.all(8),
               decoration: BoxDecoration(
-                color: AppColors.primary.withOpacity(0.08),
+                color: AppColors.primary.withValues(alpha: 0.08),
                 shape: BoxShape.circle,
               ),
               child: const Icon(Icons.history_rounded, color: AppColors.primary, size: 20),
@@ -947,7 +947,7 @@ class _ScannerAnimationLineState extends State<_ScannerAnimationLine> with Singl
               color: Colors.red,
               boxShadow: [
                 BoxShadow(
-                  color: Colors.red.withOpacity(0.8),
+                  color: Colors.red.withValues(alpha: 0.8),
                   blurRadius: 4,
                   spreadRadius: 1,
                 ),
