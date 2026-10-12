@@ -61,6 +61,29 @@ class LocalStorageService {
     return _inMemoryStore[_keySelectedAccountId] as String?;
   }
 
+  static Future<void> setAccountToken(String accountId, String token) async {
+    final key = 'account_token_$accountId';
+    _inMemoryStore[key] = token;
+    if (_prefs != null) {
+      try {
+        await _prefs!.setString(key, token);
+      } catch (_) {}
+    }
+  }
+
+  static String? getAccountToken(String accountId) {
+    final key = 'account_token_$accountId';
+    if (_prefs != null) {
+      try {
+        final val = _prefs!.getString(key);
+        if (val != null && val.isNotEmpty) return val;
+      } catch (_) {}
+    }
+    final inMem = _inMemoryStore[key] as String?;
+    if (inMem != null && inMem.isNotEmpty) return inMem;
+    return null;
+  }
+
   // --- Settings Storage ---
   static const String _keyAppLockEnabled = 'app_lock_enabled';
   static const String _keyThemeMode = 'app_theme_mode'; 

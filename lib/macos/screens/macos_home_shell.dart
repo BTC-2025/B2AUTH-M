@@ -84,6 +84,10 @@ class _MacOsHomeShellState extends State<MacOsHomeShell> {
 
   @override
   Widget build(BuildContext context) {
+    final accountProvider = context.watch<AccountProvider>();
+    final activeAccount = accountProvider.selectedAccount;
+    final activeId = activeAccount?.id ?? 'default';
+
     return Scaffold(
       backgroundColor: MacOsTheme.background,
       body: Column(
@@ -120,9 +124,16 @@ class _MacOsHomeShellState extends State<MacOsHomeShell> {
                   child: IndexedStack(
                     index: _selectedTabIndex,
                     children: [
-                      MacOsDashboardView(selectedFilterIndex: _selectedFilterIndex),
-                      const MacOsSecurityView(),
-                      const MacOsSettingsView(),
+                      MacOsDashboardView(
+                        key: ValueKey('dash_$activeId'),
+                        selectedFilterIndex: _selectedFilterIndex,
+                      ),
+                      MacOsSecurityView(
+                        key: ValueKey('sec_$activeId'),
+                      ),
+                      MacOsSettingsView(
+                        key: ValueKey('sett_$activeId'),
+                      ),
                     ],
                   ),
                 ),

@@ -23,6 +23,7 @@ class UserAccount {
   String? phoneNumber;
   String? avatarUrl;
   String? profileImagePath;
+  String? token;
 
   UserAccount({
     required this.id,
@@ -45,6 +46,7 @@ class UserAccount {
     this.phoneNumber,
     this.avatarUrl,
     this.profileImagePath,
+    this.token,
   });
 
   /// Dynamically resolves the full profile picture URL for this account.
@@ -91,6 +93,7 @@ class UserAccount {
       'phoneNumber': phoneNumber,
       'avatarUrl': avatarUrl,
       'profileImagePath': profileImagePath,
+      'token': token,
     };
   }
 
@@ -116,6 +119,7 @@ class UserAccount {
       phoneNumber: map['phoneNumber'],
       avatarUrl: map['profilePictureUrl'] ?? map['avatarUrl'] ?? map['avatar'] ?? map['logo'],
       profileImagePath: map['profileImagePath'] ?? map['profilePictureUrl'] ?? map['avatarUrl'] ?? map['avatar'],
+      token: map['token'] ?? map['accessToken'],
     );
   }
 

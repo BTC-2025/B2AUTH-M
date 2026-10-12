@@ -29,6 +29,8 @@ class _MacOsSecurityViewState extends State<MacOsSecurityView> {
   final Set<String> _terminatingExternalIds = {};
   bool _isLoadingSessions = false;
   bool _isLoadingApps = false;
+  bool _showAllSessions = false;
+  bool _showAllExternalApps = false;
 
   @override
   void initState() {
@@ -39,7 +41,14 @@ class _MacOsSecurityViewState extends State<MacOsSecurityView> {
   }
 
   Future<void> _fetchSecurityDataFromApi() async {
-    final token = context.read<AuthNotifier>().accessToken ?? LocalStorageService.getString('access_token') ?? '';
+    final accountProvider = context.read<AccountProvider>();
+    final currentAcc = accountProvider.selectedAccount;
+    final token = currentAcc?.token ??
+        LocalStorageService.getAccountToken(currentAcc?.id ?? '') ??
+        LocalStorageService.getString('token_${currentAcc?.id}') ??
+        LocalStorageService.getString('token_${currentAcc?.email.toLowerCase()}') ??
+        context.read<AuthNotifier>().accessToken ??
+        LocalStorageService.getString('access_token') ?? '';
     if (token.isEmpty) return;
 
     setState(() {
@@ -783,52 +792,8 @@ class _MacOsSecurityViewState extends State<MacOsSecurityView> {
                         padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 22),
                         child: Column(
                           children: [
-                            // Viewfinder Container with brackets and laser scan beam
-                            SizedBox(
-                              height: 150,
-                              width: double.infinity,
-                              child: Stack(
-                                alignment: Alignment.center,
-                                children: [
-                                  CustomPaint(
-                                    size: const Size(double.infinity, 150),
-                                    painter: ViewfinderBracketPainter(),
-                                  ),
-                                  // Horizontal Glowing Laser Beam
-                                  Positioned(
-                                    top: 24,
-                                    left: 24,
-                                    right: 24,
-                                    child: Container(
-                                      height: 2.5,
-                                      decoration: BoxDecoration(
-                                        gradient: const LinearGradient(
-                                          colors: [
-                                            Colors.transparent,
-                                            Color(0xFF818CF8),
-                                            Color(0xFF6366F1),
-                                            Color(0xFF818CF8),
-                                            Colors.transparent,
-                                          ],
-                                        ),
-                                        boxShadow: [
-                                          BoxShadow(
-                                            color: const Color(0xFF818CF8).withValues(alpha: 0.8),
-                                            blurRadius: 10,
-                                            spreadRadius: 2,
-                                          ),
-                                        ],
-                                      ),
-                                    ),
-                                  ),
-                                  const Icon(
-                                    Icons.qr_code_2_rounded,
-                                    size: 54,
-                                    color: Color(0xFF6366F1),
-                                  ),
-                                ],
-                              ),
-                            ),
+                            // Viewfinder Container with animated laser sweep
+                            const ScanningLaserViewfinder(),
                             const SizedBox(height: 16),
                             const Text(
                               'Point your camera at the QR code',
@@ -1359,54 +1324,92 @@ class _MacOsSecurityViewState extends State<MacOsSecurityView> {
                                   alignment: Alignment.center,
                                   child: const Text('No active sessions found.', style: TextStyle(color: MacOsTheme.textTertiary, fontSize: 13)),
                                 )
-                              : Column(
-                                  children: _devices.asMap().entries.map((entry) {
-                                    final idx = entry.key;
-                                    final dev = entry.value;
-
+                              : Builder(
+                                  builder: (context) {
+                                    final visibleDevices = _showAllSessions ? _devices : _devices.take(6).toList();
                                     return Column(
                                       children: [
-                                        if (idx > 0) const Divider(height: 16, color: MacOsTheme.border),
-                                        Row(
-                                          children: [
-                                            Container(
-                                              width: 36,
-                                              height: 36,
-                                              decoration: const BoxDecoration(
-                                                color: Color(0xFFF0F4FE),
-                                                shape: BoxShape.circle,
-                                              ),
-                                              child: const Icon(Icons.computer_rounded, color: MacOsTheme.brandBlue, size: 18),
-                                            ),
-                                            const SizedBox(width: 14),
-                                            Expanded(
-                                              child: Column(
-                                                crossAxisAlignment: CrossAxisAlignment.start,
+                                        ...visibleDevices.asMap().entries.map((entry) {
+                                          final idx = entry.key;
+                                          final dev = entry.value;
+
+                                          return Column(
+                                            children: [
+                                              if (idx > 0) const Divider(height: 16, color: MacOsTheme.border),
+                                              Row(
                                                 children: [
-                                                  Text(dev['name'] ?? 'Unknown Device', style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w700, color: MacOsTheme.textPrimary)),
-                                                  const SizedBox(height: 2),
-                                                  Text(dev['details'] ?? '', style: const TextStyle(fontSize: 11.5, color: MacOsTheme.textTertiary)),
+                                                  Container(
+                                                    width: 36,
+                                                    height: 36,
+                                                    decoration: const BoxDecoration(
+                                                      color: Color(0xFFF0F4FE),
+                                                      shape: BoxShape.circle,
+                                                    ),
+                                                    child: const Icon(Icons.computer_rounded, color: MacOsTheme.brandBlue, size: 18),
+                                                  ),
+                                                  const SizedBox(width: 14),
+                                                  Expanded(
+                                                    child: Column(
+                                                      crossAxisAlignment: CrossAxisAlignment.start,
+                                                      children: [
+                                                        Text(dev['name'] ?? 'Unknown Device', style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w700, color: MacOsTheme.textPrimary)),
+                                                        const SizedBox(height: 2),
+                                                        Text(dev['details'] ?? '', style: const TextStyle(fontSize: 11.5, color: MacOsTheme.textTertiary)),
+                                                      ],
+                                                    ),
+                                                  ),
+                                                  TextButton.icon(
+                                                    onPressed: () => _terminateSession(dev['id']),
+                                                    icon: const Icon(Icons.logout_rounded, size: 13, color: Color(0xFFDC2626)),
+                                                    label: const Text('Sign Out', style: TextStyle(fontSize: 11.5, fontWeight: FontWeight.w600, color: Color(0xFFDC2626))),
+                                                    style: TextButton.styleFrom(
+                                                      backgroundColor: const Color(0xFFFEF2F2),
+                                                      shape: RoundedRectangleBorder(
+                                                        borderRadius: BorderRadius.circular(6),
+                                                        side: const BorderSide(color: Color(0xFFFEE2E2)),
+                                                      ),
+                                                      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                                                    ),
+                                                  ),
+                                                ],
+                                              ),
+                                            ],
+                                          );
+                                        }),
+                                        if (_devices.length > 6) ...[
+                                          const Divider(height: 16, color: MacOsTheme.border),
+                                          InkWell(
+                                            onTap: () {
+                                              setState(() => _showAllSessions = !_showAllSessions);
+                                            },
+                                            borderRadius: BorderRadius.circular(6),
+                                            child: Padding(
+                                              padding: const EdgeInsets.symmetric(vertical: 6),
+                                              child: Row(
+                                                mainAxisAlignment: MainAxisAlignment.center,
+                                                children: [
+                                                  Text(
+                                                    _showAllSessions ? 'Show less' : 'Show more (${_devices.length - 6} more)',
+                                                    style: const TextStyle(
+                                                      fontSize: 12,
+                                                      fontWeight: FontWeight.w600,
+                                                      color: MacOsTheme.brandBlue,
+                                                    ),
+                                                  ),
+                                                  const SizedBox(width: 4),
+                                                  Icon(
+                                                    _showAllSessions ? Icons.keyboard_arrow_up_rounded : Icons.keyboard_arrow_down_rounded,
+                                                    size: 16,
+                                                    color: MacOsTheme.brandBlue,
+                                                  ),
                                                 ],
                                               ),
                                             ),
-                                            TextButton.icon(
-                                              onPressed: () => _terminateSession(dev['id']),
-                                              icon: const Icon(Icons.logout_rounded, size: 13, color: Color(0xFFDC2626)),
-                                              label: const Text('Sign Out', style: TextStyle(fontSize: 11.5, fontWeight: FontWeight.w600, color: Color(0xFFDC2626))),
-                                              style: TextButton.styleFrom(
-                                                backgroundColor: const Color(0xFFFEF2F2),
-                                                shape: RoundedRectangleBorder(
-                                                  borderRadius: BorderRadius.circular(6),
-                                                  side: const BorderSide(color: Color(0xFFFEE2E2)),
-                                                ),
-                                                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
-                                              ),
-                                            ),
-                                          ],
-                                        ),
+                                          ),
+                                        ],
                                       ],
                                     );
-                                  }).toList(),
+                                  },
                                 ),
                     ),
                   ],
@@ -1583,54 +1586,92 @@ class _MacOsSecurityViewState extends State<MacOsSecurityView> {
                                   alignment: Alignment.center,
                                   child: const Text('No third-party apps connected.', style: TextStyle(color: MacOsTheme.textTertiary, fontSize: 13)),
                                 )
-                              : Column(
-                                  children: _externalApps.asMap().entries.map((entry) {
-                                    final idx = entry.key;
-                                    final app = entry.value;
-
+                              : Builder(
+                                  builder: (context) {
+                                    final visibleApps = _showAllExternalApps ? _externalApps : _externalApps.take(6).toList();
                                     return Column(
                                       children: [
-                                        if (idx > 0) const Divider(height: 16, color: MacOsTheme.border),
-                                        Row(
-                                          children: [
-                                            Container(
-                                              width: 36,
-                                              height: 36,
-                                              decoration: const BoxDecoration(
-                                                color: Color(0xFFF0F4FE),
-                                                shape: BoxShape.circle,
-                                              ),
-                                              child: const Icon(Icons.apps_rounded, color: MacOsTheme.brandBlue, size: 18),
-                                            ),
-                                            const SizedBox(width: 14),
-                                            Expanded(
-                                              child: Column(
-                                                crossAxisAlignment: CrossAxisAlignment.start,
+                                        ...visibleApps.asMap().entries.map((entry) {
+                                          final idx = entry.key;
+                                          final app = entry.value;
+
+                                          return Column(
+                                            children: [
+                                              if (idx > 0) const Divider(height: 16, color: MacOsTheme.border),
+                                              Row(
                                                 children: [
-                                                  Text(app['name'] ?? 'Bit Tool', style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w700, color: MacOsTheme.textPrimary)),
-                                                  const SizedBox(height: 2),
-                                                  Text(app['details'] ?? '', style: const TextStyle(fontSize: 11.5, color: MacOsTheme.textTertiary)),
+                                                  Container(
+                                                    width: 36,
+                                                    height: 36,
+                                                    decoration: const BoxDecoration(
+                                                      color: Color(0xFFF0F4FE),
+                                                      shape: BoxShape.circle,
+                                                    ),
+                                                    child: const Icon(Icons.apps_rounded, color: MacOsTheme.brandBlue, size: 18),
+                                                  ),
+                                                  const SizedBox(width: 14),
+                                                  Expanded(
+                                                    child: Column(
+                                                      crossAxisAlignment: CrossAxisAlignment.start,
+                                                      children: [
+                                                        Text(app['name'] ?? 'Bit Tool', style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w700, color: MacOsTheme.textPrimary)),
+                                                        const SizedBox(height: 2),
+                                                        Text(app['details'] ?? '', style: const TextStyle(fontSize: 11.5, color: MacOsTheme.textTertiary)),
+                                                      ],
+                                                    ),
+                                                  ),
+                                                  TextButton.icon(
+                                                    onPressed: () => _terminateExternalSession(app['id']),
+                                                    icon: const Icon(Icons.delete_outline_rounded, size: 13, color: Color(0xFFDC2626)),
+                                                    label: const Text('Remove access', style: TextStyle(fontSize: 11.5, fontWeight: FontWeight.w600, color: Color(0xFFDC2626))),
+                                                    style: TextButton.styleFrom(
+                                                      backgroundColor: const Color(0xFFFEF2F2),
+                                                      shape: RoundedRectangleBorder(
+                                                        borderRadius: BorderRadius.circular(6),
+                                                        side: const BorderSide(color: Color(0xFFFEE2E2)),
+                                                      ),
+                                                      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                                                    ),
+                                                  ),
+                                                ],
+                                              ),
+                                            ],
+                                          );
+                                        }),
+                                        if (_externalApps.length > 6) ...[
+                                          const Divider(height: 16, color: MacOsTheme.border),
+                                          InkWell(
+                                            onTap: () {
+                                              setState(() => _showAllExternalApps = !_showAllExternalApps);
+                                            },
+                                            borderRadius: BorderRadius.circular(6),
+                                            child: Padding(
+                                              padding: const EdgeInsets.symmetric(vertical: 6),
+                                              child: Row(
+                                                mainAxisAlignment: MainAxisAlignment.center,
+                                                children: [
+                                                  Text(
+                                                    _showAllExternalApps ? 'Show less' : 'Show more (${_externalApps.length - 6} more)',
+                                                    style: const TextStyle(
+                                                      fontSize: 12,
+                                                      fontWeight: FontWeight.w600,
+                                                      color: MacOsTheme.brandBlue,
+                                                    ),
+                                                  ),
+                                                  const SizedBox(width: 4),
+                                                  Icon(
+                                                    _showAllExternalApps ? Icons.keyboard_arrow_up_rounded : Icons.keyboard_arrow_down_rounded,
+                                                    size: 16,
+                                                    color: MacOsTheme.brandBlue,
+                                                  ),
                                                 ],
                                               ),
                                             ),
-                                            TextButton.icon(
-                                              onPressed: () => _terminateExternalSession(app['id']),
-                                              icon: const Icon(Icons.delete_outline_rounded, size: 13, color: Color(0xFFDC2626)),
-                                              label: const Text('Remove access', style: TextStyle(fontSize: 11.5, fontWeight: FontWeight.w600, color: Color(0xFFDC2626))),
-                                              style: TextButton.styleFrom(
-                                                backgroundColor: const Color(0xFFFEF2F2),
-                                                shape: RoundedRectangleBorder(
-                                                  borderRadius: BorderRadius.circular(6),
-                                                  side: const BorderSide(color: Color(0xFFFEE2E2)),
-                                                ),
-                                                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
-                                              ),
-                                            ),
-                                          ],
-                                        ),
+                                          ),
+                                        ],
                                       ],
                                     );
-                                  }).toList(),
+                                  },
                                 ),
                     ),
                   ],
@@ -1675,5 +1716,168 @@ class ViewfinderBracketPainter extends CustomPainter {
 
   @override
   bool shouldRepaint(covariant CustomPainter oldDelegate) => false;
+}
+
+class ScanningLaserViewfinder extends StatefulWidget {
+  const ScanningLaserViewfinder({super.key});
+
+  @override
+  State<ScanningLaserViewfinder> createState() => _ScanningLaserViewfinderState();
+}
+
+class _ScanningLaserViewfinderState extends State<ScanningLaserViewfinder>
+    with SingleTickerProviderStateMixin {
+  late final AnimationController _controller;
+  late final Animation<double> _animation;
+
+  @override
+  void initState() {
+    super.initState();
+    _controller = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 2200),
+    )..repeat(reverse: true);
+
+    _animation = CurvedAnimation(
+      parent: _controller,
+      curve: Curves.easeInOutCubic,
+    );
+  }
+
+  @override
+  void dispose() {
+    _controller.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    const double totalHeight = 150.0;
+    const double minY = 16.0;
+    const double maxY = 130.0;
+    const double travelDistance = maxY - minY;
+
+    return SizedBox(
+      height: totalHeight,
+      width: double.infinity,
+      child: AnimatedBuilder(
+        animation: _animation,
+        builder: (context, child) {
+          final scanProgress = _animation.value;
+          final currentY = minY + (travelDistance * scanProgress);
+          final isMovingDown = _controller.status != AnimationStatus.reverse;
+
+          // Subtle pulse when laser crosses the center
+          final distanceFromCenter = (scanProgress - 0.5).abs();
+          final centerProximity = (1.0 - (distanceFromCenter * 2.2)).clamp(0.0, 1.0);
+
+          return Stack(
+            alignment: Alignment.center,
+            children: [
+              // Subtle HUD ambient background scan bloom
+              Positioned.fill(
+                child: Padding(
+                  padding: const EdgeInsets.all(12.0),
+                  child: DecoratedBox(
+                    decoration: BoxDecoration(
+                      borderRadius: BorderRadius.circular(10),
+                      gradient: RadialGradient(
+                        center: Alignment(0, (scanProgress - 0.5) * 1.6),
+                        radius: 0.85,
+                        colors: [
+                          const Color(0xFF6366F1).withValues(alpha: 0.07),
+                          Colors.transparent,
+                        ],
+                      ),
+                    ),
+                  ),
+                ),
+              ),
+
+              // Viewfinder corner brackets
+              CustomPaint(
+                size: const Size(double.infinity, totalHeight),
+                painter: ViewfinderBracketPainter(),
+              ),
+
+              // QR Code in center with reactive laser highlight
+              Opacity(
+                opacity: 0.85 + (0.15 * centerProximity),
+                child: Transform.scale(
+                  scale: 1.0 + (0.05 * centerProximity),
+                  child: Icon(
+                    Icons.qr_code_2_rounded,
+                    size: 54,
+                    color: Color.lerp(
+                      const Color(0xFF6366F1),
+                      const Color(0xFF4338CA),
+                      centerProximity,
+                    ),
+                  ),
+                ),
+              ),
+
+              // Trailing Volumetric Laser Aura / Gradient Sheet
+              Positioned(
+                top: isMovingDown ? (currentY - 26) : currentY,
+                left: 20,
+                right: 20,
+                child: Container(
+                  height: 26,
+                  decoration: BoxDecoration(
+                    gradient: LinearGradient(
+                      begin: isMovingDown ? Alignment.topCenter : Alignment.bottomCenter,
+                      end: isMovingDown ? Alignment.bottomCenter : Alignment.topCenter,
+                      colors: [
+                        Colors.transparent,
+                        const Color(0xFF6366F1).withValues(alpha: 0.18),
+                      ],
+                    ),
+                  ),
+                ),
+              ),
+
+              // Main Glowing Laser Beam
+              Positioned(
+                top: currentY,
+                left: 18,
+                right: 18,
+                child: Container(
+                  height: 2.5,
+                  decoration: BoxDecoration(
+                    borderRadius: BorderRadius.circular(2),
+                    gradient: const LinearGradient(
+                      colors: [
+                        Colors.transparent,
+                        Color(0x33818CF8),
+                        Color(0xFF818CF8),
+                        Color(0xFFFFFFFF),
+                        Color(0xFF818CF8),
+                        Color(0x33818CF8),
+                        Colors.transparent,
+                      ],
+                      stops: [0.0, 0.12, 0.32, 0.5, 0.68, 0.88, 1.0],
+                    ),
+                    boxShadow: [
+                      BoxShadow(
+                        color: const Color(0xFF6366F1).withValues(alpha: 0.95),
+                        blurRadius: 10,
+                        spreadRadius: 2,
+                      ),
+                      BoxShadow(
+                        color: const Color(0xFF818CF8).withValues(alpha: 0.65),
+                        blurRadius: 18,
+                        spreadRadius: 4,
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+            ],
+          );
+        },
+      ),
+    );
+  }
 }
 

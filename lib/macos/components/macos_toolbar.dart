@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../../core/models/user_account.dart';
 import '../../core/providers/account_provider.dart';
+import '../../screens/auth/notifiers/auth_notifier.dart';
 import '../../widgets/profile_avatar.dart';
 import '../theme/macos_theme.dart';
 
@@ -154,70 +155,107 @@ class MacOsToolbar extends StatelessWidget {
 
                       const SizedBox(height: 16),
                       // Other Logged-in Accounts with Profile Images
-                      if (allAccounts.length > 1) ...[
-                        const Divider(height: 1, color: Color(0xFFF1F5F9)),
-                        const SizedBox(height: 12),
-                        ...allAccounts.where((acc) => acc.id != user?.id).map((otherAcc) {
-                          return MouseRegion(
-                            cursor: SystemMouseCursors.click,
-                            child: GestureDetector(
-                              onTap: () {
-                                Navigator.pop(dialogCtx);
-                                accountProvider.switchAccount(otherAcc.id);
-                              },
-                              child: Container(
-                                margin: const EdgeInsets.only(bottom: 8),
-                                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
-                                decoration: BoxDecoration(
-                                  borderRadius: BorderRadius.circular(10),
-                                  color: const Color(0xFFF8FAFC),
-                                  border: Border.all(color: const Color(0xFFE2E8F0), width: 0.8),
-                                ),
-                                child: Row(
-                                  children: [
-                                    ProfileAvatar(
-                                      letter: otherAcc.avatarLetter.isNotEmpty ? otherAcc.avatarLetter : 'R',
-                                      imageUrl: otherAcc.effectiveAvatarUrl ?? otherAcc.avatarUrl,
-                                      imagePath: otherAcc.profileImagePath,
-                                      size: 32,
-                                      backgroundColor: const Color(0xFF6B46C1),
-                                    ),
-                                    const SizedBox(width: 10),
-                                    Expanded(
-                                      child: Column(
-                                        crossAxisAlignment: CrossAxisAlignment.start,
+                      Builder(
+                        builder: (context) {
+                          final currentUserId = user?.id ?? '';
+                          final currentUserEmail = (user?.email ?? '').trim().toLowerCase();
+                          final currentUserPrefix = currentUserEmail.contains('@')
+                              ? currentUserEmail.split('@').first
+                              : currentUserEmail;
+
+                          final Map<String, UserAccount> uniqueOthers = {};
+                          for (final acc in allAccounts) {
+                            if (acc.id == currentUserId) continue;
+                            final accEmail = acc.email.trim().toLowerCase();
+                            final accPrefix = accEmail.contains('@')
+                                ? accEmail.split('@').first
+                                : accEmail;
+
+                            // Skip if matches active user by email or prefix
+                            if (currentUserEmail.isNotEmpty && accEmail == currentUserEmail) continue;
+                            if (currentUserPrefix.isNotEmpty && accPrefix == currentUserPrefix) continue;
+
+                            final key = accEmail.isNotEmpty ? accEmail : (accPrefix.isNotEmpty ? accPrefix : acc.id);
+                            if (!uniqueOthers.containsKey(key)) {
+                              uniqueOthers[key] = acc;
+                            }
+                          }
+                          final otherAccountsList = uniqueOthers.values.toList();
+
+                          if (otherAccountsList.isEmpty) {
+                            return const SizedBox.shrink();
+                          }
+
+                          return Column(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              const Divider(height: 1, color: Color(0xFFF1F5F9)),
+                              const SizedBox(height: 12),
+                              ...otherAccountsList.map((otherAcc) {
+                                return MouseRegion(
+                                  cursor: SystemMouseCursors.click,
+                                  child: GestureDetector(
+                                    onTap: () {
+                                      Navigator.pop(dialogCtx);
+                                      final auth = context.read<AuthNotifier>();
+                                      accountProvider.switchAccount(otherAcc.id, authNotifier: auth);
+                                    },
+                                    child: Container(
+                                      margin: const EdgeInsets.only(bottom: 8),
+                                      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+                                      decoration: BoxDecoration(
+                                        borderRadius: BorderRadius.circular(10),
+                                        color: const Color(0xFFF8FAFC),
+                                        border: Border.all(color: const Color(0xFFE2E8F0), width: 0.8),
+                                      ),
+                                      child: Row(
                                         children: [
-                                          Text(
-                                            otherAcc.displayName.isNotEmpty ? otherAcc.displayName : otherAcc.name,
-                                            style: const TextStyle(
-                                              fontSize: 12.5,
-                                              fontWeight: FontWeight.w600,
-                                              color: Color(0xFF1E293B),
-                                            ),
-                                            maxLines: 1,
-                                            overflow: TextOverflow.ellipsis,
+                                          ProfileAvatar(
+                                            letter: otherAcc.avatarLetter.isNotEmpty ? otherAcc.avatarLetter : 'R',
+                                            imageUrl: otherAcc.effectiveAvatarUrl ?? otherAcc.avatarUrl,
+                                            imagePath: otherAcc.profileImagePath,
+                                            size: 32,
+                                            backgroundColor: const Color(0xFF6B46C1),
                                           ),
-                                          Text(
-                                            otherAcc.email,
-                                            style: const TextStyle(
-                                              fontSize: 11,
-                                              color: Color(0xFF64748B),
+                                          const SizedBox(width: 10),
+                                          Expanded(
+                                            child: Column(
+                                              crossAxisAlignment: CrossAxisAlignment.start,
+                                              children: [
+                                                Text(
+                                                  otherAcc.displayName.isNotEmpty ? otherAcc.displayName : otherAcc.name,
+                                                  style: const TextStyle(
+                                                    fontSize: 12.5,
+                                                    fontWeight: FontWeight.w600,
+                                                    color: Color(0xFF1E293B),
+                                                  ),
+                                                  maxLines: 1,
+                                                  overflow: TextOverflow.ellipsis,
+                                                ),
+                                                Text(
+                                                  otherAcc.email,
+                                                  style: const TextStyle(
+                                                    fontSize: 11,
+                                                    color: Color(0xFF64748B),
+                                                  ),
+                                                  maxLines: 1,
+                                                  overflow: TextOverflow.ellipsis,
+                                                ),
+                                              ],
                                             ),
-                                            maxLines: 1,
-                                            overflow: TextOverflow.ellipsis,
                                           ),
+                                          const Icon(Icons.swap_horiz_rounded, size: 16, color: Color(0xFF64748B)),
                                         ],
                                       ),
                                     ),
-                                    const Icon(Icons.swap_horiz_rounded, size: 16, color: Color(0xFF64748B)),
-                                  ],
-                                ),
-                              ),
-                            ),
+                                  ),
+                                );
+                              }),
+                              const SizedBox(height: 4),
+                            ],
                           );
-                        }),
-                        const SizedBox(height: 4),
-                      ],
+                        },
+                      ),
                       const Divider(height: 1, color: Color(0xFFF1F5F9)),
                       const SizedBox(height: 14),
 

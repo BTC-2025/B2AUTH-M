@@ -3,6 +3,7 @@ import 'package:provider/provider.dart';
 import 'package:uuid/uuid.dart';
 import '../../core/models/user_account.dart';
 import '../../core/providers/account_provider.dart';
+import '../../core/services/local_storage_service.dart';
 import '../../screens/auth/notifiers/auth_notifier.dart';
 import '../../screens/auth/notifiers/login_notifier.dart';
 import '../../screens/auth/register_account_type_screen.dart';
@@ -34,32 +35,57 @@ class _MacOsLoginViewState extends State<MacOsLoginView> {
   void _onLoginSuccess(String email, String accessToken) {
     final accountProvider = context.read<AccountProvider>();
 
-    final existingAccount = accountProvider.accounts.firstWhere(
-      (a) => a.email.toLowerCase() == email.toLowerCase(),
-      orElse: () {
-        final name = email.split('@').first;
-        final newAcc = UserAccount(
-          id: const Uuid().v4(),
-          name: name.toUpperCase(),
-          displayName: name,
-          username: name.toLowerCase(),
-          email: email,
-          avatarLetter: name.isNotEmpty ? name[0].toUpperCase() : 'B',
-          createdAt: DateTime.now(),
-          lastUsed: DateTime.now(),
-          type: AccountType.personal,
-          avatarUrl: 'https://api.bnxmail.com/api/users/profile-picture/${name.toLowerCase()}',
-        );
-        accountProvider.addAccount(newAcc);
-        return newAcc;
-      },
-    );
+    final cleanEmail = email.trim();
+    final cleanLower = cleanEmail.toLowerCase();
+    final name = cleanLower.contains('@') ? cleanLower.split('@').first : cleanLower;
 
-    accountProvider.switchAccount(existingAccount.id);
-    context.read<AuthNotifier>().loginSuccess(accessToken: accessToken, email: email);
+    // Check if an account for this user already exists by email, username, or prefix
+    UserAccount? existingAccount;
+    for (final a in accountProvider.accounts) {
+      final aEmail = a.email.trim().toLowerCase();
+      final aUname = a.username.trim().toLowerCase();
+      final aPrefix = aEmail.contains('@') ? aEmail.split('@').first : aEmail;
+      if (aEmail == cleanLower || (aUname.isNotEmpty && aUname == name) || (aPrefix.isNotEmpty && aPrefix == name)) {
+        existingAccount = a;
+        break;
+      }
+    }
 
-    Navigator.of(context).pushReplacement(
+    if (existingAccount == null) {
+      final newAcc = UserAccount(
+        id: const Uuid().v4(),
+        name: name.toUpperCase(),
+        displayName: name,
+        username: name,
+        email: cleanEmail.contains('@') ? cleanEmail : '$cleanEmail@bnxmail.com',
+        avatarLetter: name.isNotEmpty ? name[0].toUpperCase() : 'B',
+        createdAt: DateTime.now(),
+        lastUsed: DateTime.now(),
+        type: AccountType.personal,
+        avatarUrl: 'https://api.bnxmail.com/api/users/profile-picture/$name',
+        token: accessToken,
+      );
+      LocalStorageService.setAccountToken(newAcc.id, accessToken);
+      LocalStorageService.setString('token_${newAcc.email.toLowerCase()}', accessToken);
+      accountProvider.addAccount(newAcc);
+      existingAccount = newAcc;
+    } else {
+      existingAccount.token = accessToken;
+      LocalStorageService.setAccountToken(existingAccount.id, accessToken);
+      LocalStorageService.setString('token_${existingAccount.email.toLowerCase()}', accessToken);
+      if (cleanEmail.contains('@') && !existingAccount.email.contains('@')) {
+        existingAccount.email = cleanEmail;
+      }
+      existingAccount.lastUsed = DateTime.now();
+      accountProvider.updateAccount(existingAccount);
+      accountProvider.switchAccount(existingAccount.id, authNotifier: context.read<AuthNotifier>());
+    }
+
+    context.read<AuthNotifier>().loginSuccess(accessToken: accessToken, email: existingAccount.email);
+
+    Navigator.of(context).pushAndRemoveUntil(
       MaterialPageRoute(builder: (_) => const HomeScreen()),
+      (route) => false,
     );
   }
 

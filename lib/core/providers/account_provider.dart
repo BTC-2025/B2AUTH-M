@@ -15,23 +15,57 @@ class AccountProvider with ChangeNotifier {
     _loadAccounts();
   }
 
-  void _loadAccounts() {
-    final rawAccounts = LocalStorageService.getAccounts();
-    final Map<String, UserAccount> uniqueMap = {};
-    for (var acc in rawAccounts) {
-      final emailKey = acc.email.trim().toLowerCase();
-      if (emailKey.isNotEmpty) {
-        if (!uniqueMap.containsKey(emailKey) || acc.isPrimary) {
-          uniqueMap[emailKey] = acc;
-        }
+  bool _isSameAccount(UserAccount a, UserAccount b) {
+    if (a.id == b.id) return true;
+    final aEmail = a.email.trim().toLowerCase();
+    final bEmail = b.email.trim().toLowerCase();
+    if (aEmail.isNotEmpty && bEmail.isNotEmpty && aEmail == bEmail) return true;
+    final aUname = a.username.trim().toLowerCase();
+    final bUname = b.username.trim().toLowerCase();
+    if (aUname.isNotEmpty && bUname.isNotEmpty && aUname == bUname) return true;
+    final aPrefix = aEmail.contains('@') ? aEmail.split('@').first : aEmail;
+    final bPrefix = bEmail.contains('@') ? bEmail.split('@').first : bEmail;
+    if (aPrefix.isNotEmpty && bPrefix.isNotEmpty && aPrefix == bPrefix) return true;
+    return false;
+  }
+
+  void _deduplicateAccounts() {
+    final List<UserAccount> unique = [];
+    for (var acc in _accounts) {
+      final existingIndex = unique.indexWhere((u) => _isSameAccount(u, acc));
+      if (existingIndex == -1) {
+        unique.add(acc);
       } else {
-        uniqueMap[acc.id] = acc;
+        final existing = unique[existingIndex];
+        if (acc.isPrimary && !existing.isPrimary) {
+          unique[existingIndex] = acc;
+        } else if (acc.email.contains('@') && !existing.email.contains('@')) {
+          unique[existingIndex] = acc;
+        } else if (acc.lastUsed.isAfter(existing.lastUsed)) {
+          if (existing.email.contains('@') && !acc.email.contains('@')) {
+            acc.email = existing.email;
+          }
+          unique[existingIndex] = acc;
+        }
       }
     }
-    _accounts = uniqueMap.values.toList();
+    _accounts = unique;
+  }
+
+  void _loadAccounts() {
+    _accounts = LocalStorageService.getAccounts();
+    _deduplicateAccounts();
     for (var acc in _accounts) {
       if (acc.avatarUrl == null || acc.avatarUrl!.isEmpty) {
         acc.avatarUrl = acc.effectiveAvatarUrl;
+      }
+      if (acc.token == null || acc.token!.isEmpty) {
+        final savedTok = LocalStorageService.getAccountToken(acc.id) ??
+            LocalStorageService.getString('token_${acc.id}') ??
+            LocalStorageService.getString('token_${acc.email.toLowerCase()}');
+        if (savedTok != null && savedTok.isNotEmpty) {
+          acc.token = savedTok;
+        }
       }
     }
     LocalStorageService.saveAccounts(_accounts);
@@ -150,10 +184,37 @@ class AccountProvider with ChangeNotifier {
     };
   }
 
-  void switchAccount(String id) {
-    _selectedAccount = _accounts.firstWhere((a) => a.id == id);
+  void switchAccount(String id, {dynamic authNotifier}) {
+    _selectedAccount = _accounts.firstWhere(
+      (a) => a.id == id,
+      orElse: () => _accounts.first,
+    );
     _selectedAccount!.lastUsed = DateTime.now();
-    LocalStorageService.setSelectedAccountId(id);
+
+    final accountToken = _selectedAccount!.token ??
+        LocalStorageService.getAccountToken(_selectedAccount!.id) ??
+        LocalStorageService.getString('token_${_selectedAccount!.id}') ??
+        LocalStorageService.getString('token_${_selectedAccount!.email.toLowerCase()}') ??
+        LocalStorageService.getString('token_${_selectedAccount!.username.toLowerCase()}') ??
+        LocalStorageService.getString('access_token');
+
+    if (accountToken != null && accountToken.isNotEmpty) {
+      _selectedAccount!.token = accountToken;
+      LocalStorageService.setString('access_token', accountToken);
+      LocalStorageService.setString('active_email', _selectedAccount!.email);
+      LocalStorageService.setAccountToken(_selectedAccount!.id, accountToken);
+      LocalStorageService.setString('token_${_selectedAccount!.email.toLowerCase()}', accountToken);
+
+      if (authNotifier != null) {
+        try {
+          authNotifier.loginSuccess(accessToken: accountToken, email: _selectedAccount!.email);
+        } catch (_) {}
+      }
+
+      fetchProfileFromApi(accountToken);
+    }
+
+    LocalStorageService.setSelectedAccountId(_selectedAccount!.id);
     LocalStorageService.saveAccounts(_accounts);
     notifyListeners();
   }
@@ -162,26 +223,39 @@ class AccountProvider with ChangeNotifier {
     final index = _accounts.indexWhere((a) => a.id == account.id);
     if (index != -1) {
       _accounts[index] = account;
-      LocalStorageService.saveAccounts(_accounts);
-      notifyListeners();
+    } else {
+      _accounts.add(account);
     }
+    _deduplicateAccounts();
+    LocalStorageService.saveAccounts(_accounts);
+    notifyListeners();
   }
 
   void addAccount(UserAccount account) {
     if (account.avatarUrl == null || account.avatarUrl!.isEmpty) {
       account.avatarUrl = account.effectiveAvatarUrl;
     }
-    final emailKey = account.email.trim().toLowerCase();
-    final existingIndex = _accounts.indexWhere(
-      (a) => (emailKey.isNotEmpty && a.email.trim().toLowerCase() == emailKey) || a.id == account.id,
-    );
-    if (existingIndex != -1) {
-      _accounts[existingIndex] = account;
-      _selectedAccount = _accounts[existingIndex];
+    if (account.token != null && account.token!.isNotEmpty) {
+      LocalStorageService.setAccountToken(account.id, account.token!);
+      LocalStorageService.setString('token_${account.id}', account.token!);
+      LocalStorageService.setString('token_${account.email.toLowerCase()}', account.token!);
     } else {
-      _accounts.add(account);
-      _selectedAccount = account;
+      final existingToken = LocalStorageService.getAccountToken(account.id) ??
+          LocalStorageService.getString('token_${account.id}') ??
+          LocalStorageService.getString('token_${account.email.toLowerCase()}') ??
+          LocalStorageService.getString('access_token');
+      if (existingToken != null && existingToken.isNotEmpty) {
+        account.token = existingToken;
+        LocalStorageService.setAccountToken(account.id, existingToken);
+      }
     }
+
+    // Remove any existing duplicate instances of this account
+    _accounts.removeWhere((a) => _isSameAccount(a, account));
+    _accounts.add(account);
+    _selectedAccount = account;
+    _deduplicateAccounts();
+
     LocalStorageService.setSelectedAccountId(_selectedAccount!.id);
     LocalStorageService.saveAccounts(_accounts);
     notifyListeners();

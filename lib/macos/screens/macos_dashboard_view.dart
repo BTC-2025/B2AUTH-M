@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../../core/providers/account_provider.dart';
 import '../../core/models/user_account.dart';
+import '../../screens/auth/notifiers/auth_notifier.dart';
 import '../../widgets/profile_avatar.dart';
 import '../theme/macos_theme.dart';
 
@@ -44,7 +45,9 @@ class _MacOsDashboardViewState extends State<MacOsDashboardView> {
     final rawAccounts = accountProvider.accounts;
     final Map<String, UserAccount> uniqueAccountsMap = {};
     for (var a in rawAccounts) {
-      final key = a.email.trim().toLowerCase();
+      final emailKey = a.email.trim().toLowerCase();
+      final prefix = emailKey.contains('@') ? emailKey.split('@').first : emailKey;
+      final key = emailKey.isNotEmpty ? emailKey : (prefix.isNotEmpty ? prefix : a.id);
       if (key.isNotEmpty) {
         if (!uniqueAccountsMap.containsKey(key) || a.isPrimary) {
           uniqueAccountsMap[key] = a;
@@ -311,7 +314,8 @@ class _MacOsDashboardViewState extends State<MacOsDashboardView> {
                             child: GestureDetector(
                               onTap: () {
                                 if (!isCurrent) {
-                                  accountProvider.switchAccount(acc.id);
+                                  final auth = context.read<AuthNotifier>();
+                                  accountProvider.switchAccount(acc.id, authNotifier: auth);
                                   _showFeedback('Switched to ${acc.displayName}');
                                 }
                               },
