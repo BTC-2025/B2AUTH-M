@@ -24,10 +24,20 @@
 	<string>????</string>
 	<key>CFBundleVersion</key>
 	<string>$(FLUTTER_BUILD_NUMBER)</string>
-	<key>LSRequiresIPhoneOS</key>
-	<true/>
 	<key>ITSAppUsesNonExemptEncryption</key>
 	<false/>
+	<key>LSRequiresIPhoneOS</key>
+	<true/>
+	<key>NSCameraUsageDescription</key>
+	<string>This app requires camera access to scan QR codes for two-factor authentication.</string>
+	<key>NSLocationAlwaysAndWhenInUseUsageDescription</key>
+	<string>This app requires location access to verify your active login sessions and security status.</string>
+	<key>NSLocationAlwaysUsageDescription</key>
+	<string>This app requires location access to verify your active login sessions and security status.</string>
+	<key>NSLocationWhenInUseUsageDescription</key>
+	<string>This app requires location access to verify your active login sessions and security status.</string>
+	<key>NSPhotoLibraryUsageDescription</key>
+	<string>This app requires access to your photo library to select QR code images.</string>
 	<key>UIApplicationSceneManifest</key>
 	<dict>
 		<key>UIApplicationSupportsMultipleScenes</key>
@@ -68,13 +78,5 @@
 		<string>UIInterfaceOrientationLandscapeLeft</string>
 		<string>UIInterfaceOrientationLandscapeRight</string>
 	</array>
-	<key>NSLocationWhenInUseUsageDescription</key>
-	<string>This app needs access to location to show your current location.</string>
-	<key>NSLocationAlwaysUsageDescription</key>
-	<string>This app needs access to location to show your current location.</string>
-	<key>NSCameraUsageDescription</key>
-	<string>This app requires camera access to scan QR codes for two-factor authentication.</string>
-	<key>NSPhotoLibraryUsageDescription</key>
-	<string>This app requires access to your photo library to select QR code images.</string>
 </dict>
 </plist>
