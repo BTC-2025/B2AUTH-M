@@ -57,7 +57,9 @@ class _ZeroTrustPageState extends State<ZeroTrustPage> {
                         );
                       }).toList(),
                       onChanged: (val) {
-                        if (val != null) setModalState(() => selectedAction = val);
+                        if (val != null) {
+                          setModalState(() => selectedAction = val);
+                        }
                       },
                     ),
                   ],

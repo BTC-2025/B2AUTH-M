@@ -266,9 +266,15 @@ class _LinkedAppsPageState extends State<LinkedAppsPage> {
     final filteredApps = _apps.where((app) {
       final matchesSearch = app.name.toLowerCase().contains(_searchQuery) ||
           app.category.toLowerCase().contains(_searchQuery);
-      if (_selectedCategory == 'All') return matchesSearch;
-      if (_selectedCategory == 'Connected') return matchesSearch && app.isConnected;
-      if (_selectedCategory == 'Revoked') return matchesSearch && !app.isConnected;
+      if (_selectedCategory == 'All') {
+        return matchesSearch;
+      }
+      if (_selectedCategory == 'Connected') {
+        return matchesSearch && app.isConnected;
+      }
+      if (_selectedCategory == 'Revoked') {
+        return matchesSearch && !app.isConnected;
+      }
       return matchesSearch;
     }).toList();
 
@@ -333,7 +339,9 @@ class _LinkedAppsPageState extends State<LinkedAppsPage> {
                           fontSize: 12,
                         ),
                         onSelected: (val) {
-                          if (val) setState(() => _selectedCategory = cat);
+                          if (val) {
+                            setState(() => _selectedCategory = cat);
+                          }
                         },
                       ),
                     );
