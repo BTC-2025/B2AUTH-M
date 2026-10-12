@@ -57,8 +57,25 @@ flutter_launcher_icons:
   android: "launcher_icon"
   ios: true
   image_path: "assets/Auth_img.png"
+  image_path_android: "assets/Auth_img.png"
+  image_path_ios: "assets/Auth_img.png"
   min_sdk_android: 21
   remove_alpha_ios: true
+  macos:
+    generate: true
+    image_path: "assets/desktop_icon_1024.png"
+  web:
+    generate: true
+    image_path: "assets/desktop_icon_1024.png"
+    background_color: "#ffffff"
+    theme_color: "#2563EB"
+  windows:
+    generate: true
+    image_path: "assets/desktop_icon_1024.png"
+    icon_size: 48
+  linux:
+    generate: true
+    image_path: "assets/desktop_icon_1024.png"
 
 # For information on the generic Dart part of this file, see the
 # following page: https://dart.dev/tools/pub/pubspec

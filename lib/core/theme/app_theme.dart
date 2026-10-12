@@ -6,6 +6,8 @@ class AppTheme {
   static ThemeData get lightTheme {
     return ThemeData(
       useMaterial3: true,
+      platform: TargetPlatform.android,
+      splashFactory: InkSparkle.splashFactory,
       scaffoldBackgroundColor: AppColors.background,
       primaryColor: AppColors.primary,
       colorScheme: ColorScheme.fromSeed(
@@ -13,6 +15,11 @@ class AppTheme {
         primary: AppColors.primary,
         secondary: AppColors.accent,
         surface: AppColors.background,
+      ),
+      appBarTheme: const AppBarTheme(
+        centerTitle: false,
+        elevation: 0,
+        backgroundColor: Colors.transparent,
       ),
       cardTheme: CardThemeData(
         color: AppColors.background,
@@ -39,6 +46,8 @@ class AppTheme {
   static ThemeData get darkTheme {
     return ThemeData(
       useMaterial3: true,
+      platform: TargetPlatform.android,
+      splashFactory: InkSparkle.splashFactory,
       brightness: Brightness.dark,
       scaffoldBackgroundColor: const Color(0xFF121212),
       primaryColor: AppColors.primary,
@@ -48,6 +57,11 @@ class AppTheme {
         primary: AppColors.primary,
         secondary: AppColors.accent,
         surface: const Color(0xFF1E1E1E),
+      ),
+      appBarTheme: const AppBarTheme(
+        centerTitle: false,
+        elevation: 0,
+        backgroundColor: Colors.transparent,
       ),
       cardTheme: CardThemeData(
         color: const Color(0xFF1E1E1E),
