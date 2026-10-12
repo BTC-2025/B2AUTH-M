@@ -1,12 +1,16 @@
 import 'package:flutter/material.dart';
+import '../utils/platform_utils.dart';
 import 'app_colors.dart';
 import 'app_text_styles.dart';
 
 class AppTheme {
+  static TargetPlatform get _currentPlatform =>
+      PlatformUtils.isDesktopOrWeb ? TargetPlatform.macOS : TargetPlatform.android;
+
   static ThemeData get lightTheme {
     return ThemeData(
       useMaterial3: true,
-      platform: TargetPlatform.android,
+      platform: _currentPlatform,
       splashFactory: InkSparkle.splashFactory,
       scaffoldBackgroundColor: AppColors.background,
       primaryColor: AppColors.primary,
@@ -46,7 +50,7 @@ class AppTheme {
   static ThemeData get darkTheme {
     return ThemeData(
       useMaterial3: true,
-      platform: TargetPlatform.android,
+      platform: _currentPlatform,
       splashFactory: InkSparkle.splashFactory,
       brightness: Brightness.dark,
       scaffoldBackgroundColor: const Color(0xFF121212),

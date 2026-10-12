@@ -14,7 +14,9 @@ import 'dashboard/mfa_page.dart';
 import 'security/security_page.dart';
 import 'settings/settings_page.dart';
 import 'notifications/notifications_page.dart';
+import '../core/utils/platform_utils.dart';
 import '../services/location_provider.dart';
+import '../macos/screens/macos_home_shell.dart';
 
 class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
@@ -75,6 +77,10 @@ class _HomeScreenState extends State<HomeScreen> {
 
   @override
   Widget build(BuildContext context) {
+    if (PlatformUtils.isDesktopOrWeb) {
+      return const MacOsHomeShell();
+    }
+
     final settings = context.watch<SettingsProvider>();
 
     return Scaffold(

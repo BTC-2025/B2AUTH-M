@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import '../../core/utils/platform_utils.dart';
 import 'package:provider/provider.dart';
 import 'widgets/auth_constants.dart';
 import 'widgets/auth_text_field.dart';
@@ -11,6 +12,7 @@ import '../home_screen.dart';
 import '../../core/providers/account_provider.dart';
 import '../../core/models/user_account.dart';
 import '../../core/services/auth_api_service.dart';
+import '../../macos/screens/macos_login_view.dart';
 import 'package:uuid/uuid.dart';
 
 class LoginScreen extends StatefulWidget {
@@ -367,6 +369,9 @@ class _LoginScreenState extends State<LoginScreen>
 
   @override
   Widget build(BuildContext context) {
+    if (PlatformUtils.isDesktopOrWeb) {
+      return const MacOsLoginView();
+    }
     return PopScope(
       canPop: false,
       onPopInvokedWithResult: (didPop, result) {
