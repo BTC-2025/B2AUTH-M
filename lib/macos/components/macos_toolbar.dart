@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
+import '../../core/models/user_account.dart';
 import '../../core/providers/account_provider.dart';
+import '../../widgets/profile_avatar.dart';
 import '../theme/macos_theme.dart';
 
 class MacOsToolbar extends StatelessWidget {
@@ -17,7 +19,10 @@ class MacOsToolbar extends StatelessWidget {
     this.onAddAccount,
   });
 
-  void _showProfilePopup(BuildContext context, dynamic user, String userName, String avatarLetter) {
+  void _showProfilePopup(BuildContext context, UserAccount? user, String userName, String avatarLetter) {
+    final accountProvider = context.read<AccountProvider>();
+    final allAccounts = accountProvider.accounts;
+
     showDialog(
       context: context,
       barrierColor: Colors.black.withValues(alpha: 0.04),
@@ -47,23 +52,13 @@ class MacOsToolbar extends StatelessWidget {
                   child: Column(
                     mainAxisSize: MainAxisSize.min,
                     children: [
-                      // 1. Avatar
-                      Container(
-                        width: 58,
-                        height: 58,
-                        decoration: const BoxDecoration(
-                          color: Color(0xFF6B46C1),
-                          shape: BoxShape.circle,
-                        ),
-                        alignment: Alignment.center,
-                        child: Text(
-                          avatarLetter.toUpperCase(),
-                          style: const TextStyle(
-                            fontSize: 26,
-                            fontWeight: FontWeight.w700,
-                            color: Colors.white,
-                          ),
-                        ),
+                      // 1. Avatar with Profile Picture
+                      ProfileAvatar(
+                        letter: avatarLetter,
+                        imageUrl: user?.effectiveAvatarUrl ?? user?.avatarUrl,
+                        imagePath: user?.profileImagePath,
+                        size: 58,
+                        backgroundColor: const Color(0xFF6B46C1),
                       ),
                       const SizedBox(height: 12),
 
@@ -158,6 +153,71 @@ class MacOsToolbar extends StatelessWidget {
                       ),
 
                       const SizedBox(height: 16),
+                      // Other Logged-in Accounts with Profile Images
+                      if (allAccounts.length > 1) ...[
+                        const Divider(height: 1, color: Color(0xFFF1F5F9)),
+                        const SizedBox(height: 12),
+                        ...allAccounts.where((acc) => acc.id != user?.id).map((otherAcc) {
+                          return MouseRegion(
+                            cursor: SystemMouseCursors.click,
+                            child: GestureDetector(
+                              onTap: () {
+                                Navigator.pop(dialogCtx);
+                                accountProvider.switchAccount(otherAcc.id);
+                              },
+                              child: Container(
+                                margin: const EdgeInsets.only(bottom: 8),
+                                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+                                decoration: BoxDecoration(
+                                  borderRadius: BorderRadius.circular(10),
+                                  color: const Color(0xFFF8FAFC),
+                                  border: Border.all(color: const Color(0xFFE2E8F0), width: 0.8),
+                                ),
+                                child: Row(
+                                  children: [
+                                    ProfileAvatar(
+                                      letter: otherAcc.avatarLetter.isNotEmpty ? otherAcc.avatarLetter : 'R',
+                                      imageUrl: otherAcc.effectiveAvatarUrl ?? otherAcc.avatarUrl,
+                                      imagePath: otherAcc.profileImagePath,
+                                      size: 32,
+                                      backgroundColor: const Color(0xFF6B46C1),
+                                    ),
+                                    const SizedBox(width: 10),
+                                    Expanded(
+                                      child: Column(
+                                        crossAxisAlignment: CrossAxisAlignment.start,
+                                        children: [
+                                          Text(
+                                            otherAcc.displayName.isNotEmpty ? otherAcc.displayName : otherAcc.name,
+                                            style: const TextStyle(
+                                              fontSize: 12.5,
+                                              fontWeight: FontWeight.w600,
+                                              color: Color(0xFF1E293B),
+                                            ),
+                                            maxLines: 1,
+                                            overflow: TextOverflow.ellipsis,
+                                          ),
+                                          Text(
+                                            otherAcc.email,
+                                            style: const TextStyle(
+                                              fontSize: 11,
+                                              color: Color(0xFF64748B),
+                                            ),
+                                            maxLines: 1,
+                                            overflow: TextOverflow.ellipsis,
+                                          ),
+                                        ],
+                                      ),
+                                    ),
+                                    const Icon(Icons.swap_horiz_rounded, size: 16, color: Color(0xFF64748B)),
+                                  ],
+                                ),
+                              ),
+                            ),
+                          );
+                        }),
+                        const SizedBox(height: 4),
+                      ],
                       const Divider(height: 1, color: Color(0xFFF1F5F9)),
                       const SizedBox(height: 14),
 
@@ -325,22 +385,13 @@ class MacOsToolbar extends StatelessWidget {
                 child: Row(
                   mainAxisSize: MainAxisSize.min,
                   children: [
-                    Container(
-                      width: 28,
-                      height: 28,
-                      decoration: const BoxDecoration(
-                        color: Color(0xFF6B46C1),
-                        shape: BoxShape.circle,
-                      ),
-                      alignment: Alignment.center,
-                      child: Text(
-                        avatarLetter.toUpperCase(),
-                        style: const TextStyle(
-                          fontSize: 13,
-                          fontWeight: FontWeight.w700,
-                          color: Colors.white,
-                        ),
-                      ),
+                    // Top right profile avatar with real profile picture
+                    ProfileAvatar(
+                      letter: avatarLetter,
+                      imageUrl: user?.effectiveAvatarUrl ?? user?.avatarUrl,
+                      imagePath: user?.profileImagePath,
+                      size: 28,
+                      backgroundColor: const Color(0xFF6B46C1),
                     ),
                     const SizedBox(width: 8),
                     Text(

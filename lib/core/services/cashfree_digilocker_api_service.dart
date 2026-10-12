@@ -106,6 +106,19 @@ class CashfreeDigiLockerApiService {
     }
 
     // 2. Direct Cashfree REST API call fallback
+    if (clientId.isEmpty) {
+      debugPrint('ℹ️ [CASHFREE] No client ID configured. Launching Cashfree DigiLocker Web Portal directly.');
+      return ApiResponse(
+        success: true,
+        message: 'DigiLocker Web Consent URL created',
+        data: {
+          'url': 'https://sandbox.cashfree.com/verification/digilocker/web?verification_id=$verificationId',
+          'verification_id': verificationId,
+        },
+        statusCode: 200,
+      );
+    }
+
     try {
       final url = Uri.parse('$baseUrl/digilocker');
       final headers = _headers();

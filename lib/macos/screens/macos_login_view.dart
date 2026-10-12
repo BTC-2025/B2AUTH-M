@@ -48,6 +48,7 @@ class _MacOsLoginViewState extends State<MacOsLoginView> {
           createdAt: DateTime.now(),
           lastUsed: DateTime.now(),
           type: AccountType.personal,
+          avatarUrl: 'https://api.bnxmail.com/api/users/profile-picture/${name.toLowerCase()}',
         );
         accountProvider.addAccount(newAcc);
         return newAcc;

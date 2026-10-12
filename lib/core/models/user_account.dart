@@ -47,6 +47,28 @@ class UserAccount {
     this.profileImagePath,
   });
 
+  /// Dynamically resolves the full profile picture URL for this account.
+  /// Works across active account, switched accounts, and newly added accounts.
+  String? get effectiveAvatarUrl {
+    if (avatarUrl != null && avatarUrl!.trim().isNotEmpty) {
+      final trimmed = avatarUrl!.trim();
+      if (trimmed.startsWith('http')) return trimmed;
+      return 'https://api.bnxmail.com${trimmed.startsWith('/') ? '' : '/'}$trimmed';
+    }
+    if (profileImagePath != null && profileImagePath!.trim().isNotEmpty) {
+      final trimmed = profileImagePath!.trim();
+      if (trimmed.startsWith('http')) return trimmed;
+      if (trimmed.startsWith('/')) return 'https://api.bnxmail.com$trimmed';
+    }
+    final uname = username.trim().isNotEmpty
+        ? username.trim()
+        : (email.contains('@') ? email.split('@').first.trim() : '');
+    if (uname.isNotEmpty) {
+      return 'https://api.bnxmail.com/api/users/profile-picture/$uname';
+    }
+    return null;
+  }
+
   Map<String, dynamic> toMap() {
     return {
       'id': id,

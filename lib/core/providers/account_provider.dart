@@ -29,6 +29,11 @@ class AccountProvider with ChangeNotifier {
       }
     }
     _accounts = uniqueMap.values.toList();
+    for (var acc in _accounts) {
+      if (acc.avatarUrl == null || acc.avatarUrl!.isEmpty) {
+        acc.avatarUrl = acc.effectiveAvatarUrl;
+      }
+    }
     LocalStorageService.saveAccounts(_accounts);
 
     if (_accounts.isNotEmpty) {
@@ -64,12 +69,14 @@ class AccountProvider with ChangeNotifier {
           if (data['username'] != null) _selectedAccount!.username = data['username'].toString();
           if (data['email'] != null) _selectedAccount!.email = data['email'].toString();
 
-          final String? rawPicUrl = data['profilePictureUrl'] ?? data['avatarUrl'] ?? data['avatar'];
+          final String? rawPicUrl = data['profilePictureUrl'] ?? data['avatarUrl'] ?? data['avatar'] ?? data['profilePicture'];
           if (rawPicUrl != null && rawPicUrl.isNotEmpty) {
             final String fullPicUrl = rawPicUrl.startsWith('http')
                 ? rawPicUrl
                 : 'https://api.bnxmail.com${rawPicUrl.startsWith('/') ? '' : '/'}$rawPicUrl';
             _selectedAccount!.avatarUrl = fullPicUrl;
+          } else {
+            _selectedAccount!.avatarUrl = _selectedAccount!.effectiveAvatarUrl;
           }
 
           if (data['accountType'] != null) {
@@ -161,6 +168,9 @@ class AccountProvider with ChangeNotifier {
   }
 
   void addAccount(UserAccount account) {
+    if (account.avatarUrl == null || account.avatarUrl!.isEmpty) {
+      account.avatarUrl = account.effectiveAvatarUrl;
+    }
     final emailKey = account.email.trim().toLowerCase();
     final existingIndex = _accounts.indexWhere(
       (a) => (emailKey.isNotEmpty && a.email.trim().toLowerCase() == emailKey) || a.id == account.id,

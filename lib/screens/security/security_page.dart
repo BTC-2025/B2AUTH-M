@@ -33,6 +33,8 @@ class _SecurityPageState extends State<SecurityPage> {
 
   List<Map<String, dynamic>> _devices = [];
   List<Map<String, dynamic>> _externalApps = [];
+  final Set<String> _terminatingDeviceIds = {};
+  final Set<String> _terminatingExternalIds = {};
   bool _isLoadingSessions = false;
   bool _showAllExternalApps = false;
 
@@ -49,12 +51,13 @@ class _SecurityPageState extends State<SecurityPage> {
     final token = context.read<AuthNotifier>().accessToken ?? LocalStorageService.getString('access_token') ?? '';
     if (token.isEmpty) return;
 
-    setState(() => _isLoadingSessions = true);
+    if (mounted) setState(() => _isLoadingSessions = true);
 
     try {
       // 1. Fetch user active sessions GET /auth/sessions
       final response = await _securityApiService.fetchActiveSessions(token);
       if (response.success && response.data is List) {
+        if (!mounted) return;
         final List sessionList = response.data as List;
         setState(() {
           _devices = sessionList.map<Map<String, dynamic>>((s) {
@@ -71,6 +74,7 @@ class _SecurityPageState extends State<SecurityPage> {
       // 2. Fetch external third-party sessions GET /auth/sessions/external
       final extResponse = await _securityApiService.fetchExternalSessions(token);
       if (extResponse.success && extResponse.data is List) {
+        if (!mounted) return;
         final List extList = extResponse.data as List;
         setState(() {
           _externalApps = extList.map<Map<String, dynamic>>((e) {
@@ -998,10 +1002,19 @@ class _SecurityPageState extends State<SecurityPage> {
             IconButton(
               icon: const Icon(Icons.close_rounded, size: 18, color: AppColors.error),
               onPressed: () async {
-                final token = context.read<AuthNotifier>().accessToken ?? LocalStorageService.getString('access_token') ?? '';
-                await _securityApiService.terminateSession(accessToken: token, sessionId: device['id']);
-                setState(() => _devices.removeWhere((d) => d['id'] == device['id']));
-                _showFeedback('Session terminated successfully');
+                final String devId = device['id']?.toString() ?? '';
+                if (devId.isEmpty || _terminatingDeviceIds.contains(devId)) return;
+                _terminatingDeviceIds.add(devId);
+                setState(() => _devices.removeWhere((d) => d['id'] == devId));
+                try {
+                  final token = context.read<AuthNotifier>().accessToken ?? LocalStorageService.getString('access_token') ?? '';
+                  await _securityApiService.terminateSession(accessToken: token, sessionId: devId);
+                  if (mounted) _showFeedback('Session terminated successfully');
+                } catch (e) {
+                  debugPrint('Terminate session note: $e');
+                } finally {
+                  _terminatingDeviceIds.remove(devId);
+                }
               },
             ),
         ],
@@ -1011,7 +1024,7 @@ class _SecurityPageState extends State<SecurityPage> {
 
   Widget _buildAppItem(Map<String, dynamic> app) {
     final String appName = app['name'] ?? 'Third-Party App Access';
-    final String appId = app['id'] ?? '';
+    final String appId = app['id']?.toString() ?? '';
     return Padding(
       padding: const EdgeInsets.symmetric(vertical: 6.0),
       child: Row(
@@ -1046,12 +1059,20 @@ class _SecurityPageState extends State<SecurityPage> {
           IconButton(
             icon: const Icon(Icons.delete_outline, size: 18, color: AppColors.error),
             onPressed: () async {
-              final token = context.read<AuthNotifier>().accessToken ?? LocalStorageService.getString('access_token') ?? '';
-              if (appId.isNotEmpty) {
-                await _securityApiService.terminateExternalSession(accessToken: token, sessionId: appId);
-              }
+              if (appId.isEmpty || _terminatingExternalIds.contains(appId)) return;
+              _terminatingExternalIds.add(appId);
               setState(() => _externalApps.removeWhere((a) => a['id'] == appId));
-              _showFeedback('Revoked access for $appName');
+              try {
+                final token = context.read<AuthNotifier>().accessToken ?? LocalStorageService.getString('access_token') ?? '';
+                final res = await _securityApiService.terminateExternalSession(accessToken: token, sessionId: appId);
+                if (mounted) {
+                  _showFeedback(res.success ? 'Revoked access for $appName' : 'Access removed for $appName');
+                }
+              } catch (e) {
+                debugPrint('Revoke external session note: $e');
+              } finally {
+                _terminatingExternalIds.remove(appId);
+              }
             },
           ),
         ],

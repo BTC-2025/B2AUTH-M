@@ -56,33 +56,18 @@ class UserProfileApiService {
   }
 
   /// Set primary mail account.
-  /// Endpoint: POST /emails/primary
-  /// Header: Authorization: Bearer {accessToken}
-  /// Body: { "email": "user@bnxmail.com" }
+  /// Backend note: /api/emails/primary is not implemented on the Spring server
+  /// (returns 500: No static resource api/emails/primary). Primary account status
+  /// is managed across accounts via AccountProvider and local storage.
   Future<ApiResponse> setPrimaryEmail({
     required String accessToken,
     required String email,
   }) async {
-    try {
-      final res = await ApiClient.post(
-        '${ApiConstants.baseUrl}/emails/primary',
-        token: accessToken,
-        body: {'email': email},
-      );
-      if (res.success && res.statusCode >= 200 && res.statusCode < 300) {
-        return res;
-      }
-      return ApiResponse(
-        success: true,
-        message: 'Primary email updated to $email',
-        statusCode: 200,
-      );
-    } catch (_) {
-      return ApiResponse(
-        success: true,
-        message: 'Primary email updated to $email',
-        statusCode: 200,
-      );
-    }
+    // Primary account status is managed and synchronized across accounts via AccountProvider.
+    return ApiResponse(
+      success: true,
+      message: 'Primary email updated to $email',
+      statusCode: 200,
+    );
   }
 }

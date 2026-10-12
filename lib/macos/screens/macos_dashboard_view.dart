@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../../core/providers/account_provider.dart';
 import '../../core/models/user_account.dart';
+import '../../widgets/profile_avatar.dart';
 import '../theme/macos_theme.dart';
 
 class MacOsDashboardView extends StatefulWidget {
@@ -133,19 +134,13 @@ class _MacOsDashboardViewState extends State<MacOsDashboardView> {
             ),
             child: Row(
               children: [
-                // Light purple/blue circular container with blue email icon
-                Container(
-                  width: 44,
-                  height: 44,
-                  decoration: const BoxDecoration(
-                    color: Color(0xFFF0F4FE),
-                    shape: BoxShape.circle,
-                  ),
-                  child: const Icon(
-                    Icons.mail_outline_rounded,
-                    color: MacOsTheme.brandBlue,
-                    size: 22,
-                  ),
+                // Primary Account Circular Profile Avatar
+                ProfileAvatar(
+                  letter: primaryAccount.avatarLetter.isNotEmpty ? primaryAccount.avatarLetter : 'R',
+                  imageUrl: primaryAccount.effectiveAvatarUrl ?? primaryAccount.avatarUrl,
+                  imagePath: primaryAccount.profileImagePath,
+                  size: 44,
+                  backgroundColor: const Color(0xFF6B46C1),
                 ),
                 const SizedBox(width: 16),
                 Expanded(
@@ -324,23 +319,13 @@ class _MacOsDashboardViewState extends State<MacOsDashboardView> {
                                 padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
                                 child: Row(
                                   children: [
-                                    // Purple circular avatar with white letter
-                                    Container(
-                                      width: 44,
-                                      height: 44,
-                                      decoration: const BoxDecoration(
-                                        color: Color(0xFF6B46C1),
-                                        shape: BoxShape.circle,
-                                      ),
-                                      alignment: Alignment.center,
-                                      child: Text(
-                                        (acc.avatarLetter.isNotEmpty ? acc.avatarLetter : 'R').toUpperCase(),
-                                        style: const TextStyle(
-                                          fontSize: 16,
-                                          fontWeight: FontWeight.w700,
-                                          color: Colors.white,
-                                        ),
-                                      ),
+                                    // Circular Profile Avatar with fallback to uppercase letter
+                                    ProfileAvatar(
+                                      letter: acc.avatarLetter.isNotEmpty ? acc.avatarLetter : 'R',
+                                      imageUrl: acc.effectiveAvatarUrl ?? acc.avatarUrl,
+                                      imagePath: acc.profileImagePath,
+                                      size: 44,
+                                      backgroundColor: const Color(0xFF6B46C1),
                                     ),
                                     const SizedBox(width: 16),
                                     Expanded(
