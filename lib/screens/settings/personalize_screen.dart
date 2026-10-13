@@ -20,7 +20,11 @@ class PersonalizeScreen extends StatelessWidget {
         ),
         title: const Text(
           'Personalize',
-          style: TextStyle(color: AppColors.textPrimary, fontWeight: FontWeight.bold, fontSize: 18),
+          style: TextStyle(
+            color: AppColors.textPrimary,
+            fontWeight: FontWeight.bold,
+            fontSize: 18,
+          ),
         ),
         backgroundColor: Colors.white,
         elevation: 0.5,
@@ -49,7 +53,10 @@ class PersonalizeScreen extends StatelessWidget {
                 borderRadius: BorderRadius.circular(16),
                 clipBehavior: Clip.antiAlias,
                 child: ListTile(
-                  contentPadding: const EdgeInsets.symmetric(horizontal: 20, vertical: 8),
+                  contentPadding: const EdgeInsets.symmetric(
+                    horizontal: 20,
+                    vertical: 8,
+                  ),
                   title: const Text(
                     'Select Language',
                     style: TextStyle(
@@ -65,11 +72,16 @@ class PersonalizeScreen extends StatelessWidget {
                       color: AppColors.textSecondary,
                     ),
                   ),
-                  trailing: const Icon(Icons.chevron_right, color: AppColors.textSecondary),
+                  trailing: const Icon(
+                    Icons.chevron_right,
+                    color: AppColors.textSecondary,
+                  ),
                   onTap: () {
                     Navigator.push(
                       context,
-                      MaterialPageRoute(builder: (_) => const LanguageSelectionScreen()),
+                      MaterialPageRoute(
+                        builder: (_) => const LanguageSelectionScreen(),
+                      ),
                     );
                   },
                 ),
@@ -83,10 +95,7 @@ class PersonalizeScreen extends StatelessWidget {
               padding: EdgeInsets.only(left: 4.0, bottom: 12.0),
               child: Text(
                 'Select the tab to view when you open B2Auth',
-                style: TextStyle(
-                  fontSize: 13,
-                  color: AppColors.textSecondary,
-                ),
+                style: TextStyle(fontSize: 13, color: AppColors.textSecondary),
               ),
             ),
             Container(
@@ -193,7 +202,10 @@ class PersonalizeScreen extends StatelessWidget {
     return Column(
       children: [
         ListTile(
-          contentPadding: const EdgeInsets.symmetric(horizontal: 20, vertical: 8),
+          contentPadding: const EdgeInsets.symmetric(
+            horizontal: 20,
+            vertical: 8,
+          ),
           title: Text(
             title,
             style: const TextStyle(
@@ -203,11 +215,7 @@ class PersonalizeScreen extends StatelessWidget {
             ),
           ),
           trailing: isSelected
-              ? Icon(
-                  Icons.check_circle,
-                  color: accentColor,
-                  size: 24,
-                )
+              ? Icon(Icons.check_circle, color: accentColor, size: 24)
               : null,
           onTap: onTap,
         ),

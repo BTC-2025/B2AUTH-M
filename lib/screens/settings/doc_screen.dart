@@ -68,7 +68,11 @@ We may update this policy periodically. We will notify you of any changes by upd
         ),
         title: Text(
           title,
-          style: const TextStyle(color: AppColors.textPrimary, fontWeight: FontWeight.bold, fontSize: 18),
+          style: const TextStyle(
+            color: AppColors.textPrimary,
+            fontWeight: FontWeight.bold,
+            fontSize: 18,
+          ),
         ),
         backgroundColor: Colors.white,
         elevation: 0.5,

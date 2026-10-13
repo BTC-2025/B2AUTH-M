@@ -20,7 +20,11 @@ class PrivacyScreen extends StatelessWidget {
         ),
         title: const Text(
           'Privacy',
-          style: TextStyle(color: AppColors.textPrimary, fontWeight: FontWeight.bold, fontSize: 18),
+          style: TextStyle(
+            color: AppColors.textPrimary,
+            fontWeight: FontWeight.bold,
+            fontSize: 18,
+          ),
         ),
         backgroundColor: Colors.white,
         elevation: 0.5,
@@ -75,7 +79,8 @@ class PrivacyScreen extends StatelessWidget {
                 children: [
                   _buildSwitchTile(
                     title: 'Share usage stats',
-                    subtitle: 'Share usage stats with our developers. This helps us improve the app.',
+                    subtitle:
+                        'Share usage stats with our developers. This helps us improve the app.',
                     value: settings.shareUsageStats,
                     onChanged: (val) => settings.setShareUsageStats(val),
                     accentColor: settings.accentColor,
@@ -83,7 +88,8 @@ class PrivacyScreen extends StatelessWidget {
                   ),
                   _buildSwitchTile(
                     title: 'Share your email address',
-                    subtitle: 'By sharing your email address with usage stats, we can better troubleshoot any problems you might encounter and contact you if necessary.',
+                    subtitle:
+                        'By sharing your email address with usage stats, we can better troubleshoot any problems you might encounter and contact you if necessary.',
                     value: settings.shareEmailAddress,
                     onChanged: (val) => settings.setShareEmailAddress(val),
                     accentColor: settings.accentColor,
@@ -91,7 +97,8 @@ class PrivacyScreen extends StatelessWidget {
                   ),
                   _buildSwitchTile(
                     title: 'Enable crash reporting',
-                    subtitle: 'Share crash data with our developers if the app shuts abruptly. This will help us identify bugs and put out fixes.',
+                    subtitle:
+                        'Share crash data with our developers if the app shuts abruptly. This will help us identify bugs and put out fixes.',
                     value: settings.enableCrashReporting,
                     onChanged: (val) => settings.setEnableCrashReporting(val),
                     accentColor: settings.accentColor,
@@ -117,7 +124,8 @@ class PrivacyScreen extends StatelessWidget {
               ),
               child: _buildSwitchTile(
                 title: 'Shake to send feedback',
-                subtitle: 'Shake your device to send us feedback or report a bug.',
+                subtitle:
+                    'Shake your device to send us feedback or report a bug.',
                 value: settings.shakeToSendFeedback,
                 onChanged: (val) => settings.setShakeToSendFeedback(val),
                 accentColor: settings.accentColor,
@@ -130,7 +138,11 @@ class PrivacyScreen extends StatelessWidget {
     );
   }
 
-  Widget _buildLinkCard({required BuildContext context, required String title, required VoidCallback onTap}) {
+  Widget _buildLinkCard({
+    required BuildContext context,
+    required String title,
+    required VoidCallback onTap,
+  }) {
     return Container(
       decoration: BoxDecoration(
         color: Colors.white,
@@ -149,7 +161,10 @@ class PrivacyScreen extends StatelessWidget {
           onTap: onTap,
           borderRadius: BorderRadius.circular(16),
           child: Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 20.0, vertical: 20.0),
+            padding: const EdgeInsets.symmetric(
+              horizontal: 20.0,
+              vertical: 20.0,
+            ),
             child: Row(
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
@@ -161,10 +176,7 @@ class PrivacyScreen extends StatelessWidget {
                     color: AppColors.textPrimary,
                   ),
                 ),
-                const Icon(
-                  Icons.chevron_right,
-                  color: AppColors.textSecondary,
-                ),
+                const Icon(Icons.chevron_right, color: AppColors.textSecondary),
               ],
             ),
           ),

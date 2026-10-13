@@ -27,8 +27,10 @@ class _AppCardState extends State<AppCard> {
   @override
   Widget build(BuildContext context) {
     return MouseRegion(
-      onEnter: (_) => widget.isHoverable ? setState(() => _isHovered = true) : null,
-      onExit: (_) => widget.isHoverable ? setState(() => _isHovered = false) : null,
+      onEnter: (_) =>
+          widget.isHoverable ? setState(() => _isHovered = true) : null,
+      onExit: (_) =>
+          widget.isHoverable ? setState(() => _isHovered = false) : null,
       child: AnimatedContainer(
         duration: const Duration(milliseconds: 200),
         height: widget.height,
@@ -36,9 +38,15 @@ class _AppCardState extends State<AppCard> {
           color: AppColors.white,
           borderRadius: BorderRadius.circular(16),
           border: Border.all(color: AppColors.border),
-          boxShadow: _isHovered 
-            ? [BoxShadow(color: Colors.black.withValues(alpha: 0.05), blurRadius: 10, offset: const Offset(0, 4))]
-            : [],
+          boxShadow: _isHovered
+              ? [
+                  BoxShadow(
+                    color: Colors.black.withValues(alpha: 0.05),
+                    blurRadius: 10,
+                    offset: const Offset(0, 4),
+                  ),
+                ]
+              : [],
         ),
         padding: const EdgeInsets.all(20),
         child: Column(

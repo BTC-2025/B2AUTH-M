@@ -28,7 +28,11 @@ class LanguageSelectionScreen extends StatelessWidget {
         ),
         title: const Text(
           'Select Language',
-          style: TextStyle(color: AppColors.textPrimary, fontWeight: FontWeight.bold, fontSize: 18),
+          style: TextStyle(
+            color: AppColors.textPrimary,
+            fontWeight: FontWeight.bold,
+            fontSize: 18,
+          ),
         ),
         backgroundColor: Colors.white,
         elevation: 0.5,
@@ -62,7 +66,10 @@ class LanguageSelectionScreen extends StatelessWidget {
                 return Column(
                   children: [
                     ListTile(
-                      contentPadding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
+                      contentPadding: const EdgeInsets.symmetric(
+                        horizontal: 24,
+                        vertical: 12,
+                      ),
                       title: Text(
                         label,
                         style: const TextStyle(

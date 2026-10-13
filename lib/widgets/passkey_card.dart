@@ -7,11 +7,7 @@ class PasskeyCard extends StatelessWidget {
   final PasskeyItem item;
   final VoidCallback onDelete;
 
-  const PasskeyCard({
-    super.key,
-    required this.item,
-    required this.onDelete,
-  });
+  const PasskeyCard({super.key, required this.item, required this.onDelete});
 
   IconData _getKeyIcon(PasskeyType type) {
     switch (type) {
@@ -71,7 +67,10 @@ class PasskeyCard extends StatelessWidget {
                 const SizedBox(height: 3),
                 Text(
                   '${item.deviceName} • Last active ${_formatTimeAgo(item.lastUsed)}',
-                  style: const TextStyle(fontSize: 11, color: AppColors.textSecondary),
+                  style: const TextStyle(
+                    fontSize: 11,
+                    color: AppColors.textSecondary,
+                  ),
                   overflow: TextOverflow.ellipsis,
                 ),
               ],
@@ -81,14 +80,18 @@ class PasskeyCard extends StatelessWidget {
           Container(
             padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
             decoration: BoxDecoration(
-              color: item.isSynced ? AppColors.successGreen.withValues(alpha: 0.1) : Colors.grey.withValues(alpha: 0.1),
+              color: item.isSynced
+                  ? AppColors.successGreen.withValues(alpha: 0.1)
+                  : Colors.grey.withValues(alpha: 0.1),
               borderRadius: BorderRadius.circular(12),
             ),
             child: Row(
               mainAxisSize: MainAxisSize.min,
               children: [
                 Icon(
-                  item.isSynced ? Icons.cloud_done_rounded : Icons.cloud_off_rounded,
+                  item.isSynced
+                      ? Icons.cloud_done_rounded
+                      : Icons.cloud_off_rounded,
                   size: 12,
                   color: item.isSynced ? AppColors.successGreen : Colors.grey,
                 ),
@@ -105,7 +108,11 @@ class PasskeyCard extends StatelessWidget {
             ),
           ),
           IconButton(
-            icon: const Icon(Icons.delete_outline_rounded, color: AppColors.errorRed, size: 20),
+            icon: const Icon(
+              Icons.delete_outline_rounded,
+              color: AppColors.errorRed,
+              size: 20,
+            ),
             onPressed: onDelete,
             tooltip: 'Remove Key',
           ),

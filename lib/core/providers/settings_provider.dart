@@ -62,10 +62,10 @@ class SettingsProvider with ChangeNotifier {
     _appLockEnabled = LocalStorageService.getAppLock();
     final themeIndex = LocalStorageService.getThemeMode();
     _themeMode = ThemeMode.values[themeIndex];
-    
+
     final timeoutStr = LocalStorageService.getString('auth_timeout');
     if (timeoutStr != null) _authTimeoutSeconds = int.parse(timeoutStr);
-    
+
     final accentVal = LocalStorageService.getString('app_accent_color');
     if (accentVal != null) {
       _accentColor = Color(int.parse(accentVal));
@@ -84,10 +84,11 @@ class SettingsProvider with ChangeNotifier {
     _enableCrashReporting = _prefsGetBool('enable_crash_reporting', true);
     _shakeToSendFeedback = _prefsGetBool('shake_to_send_feedback', false);
 
-    _defaultHomepage = LocalStorageService.getString('default_homepage') ?? 'mfa';
+    _defaultHomepage =
+        LocalStorageService.getString('default_homepage') ?? 'mfa';
     _language = LocalStorageService.getString('app_language') ?? 'English';
     _wearOsSynced = _prefsGetBool('wear_os_synced', false);
-    
+
     notifyListeners();
   }
 
@@ -121,7 +122,10 @@ class SettingsProvider with ChangeNotifier {
 
   void setAccentColor(Color color) {
     _accentColor = color;
-    LocalStorageService.setString('app_accent_color', color.toARGB32().toString());
+    LocalStorageService.setString(
+      'app_accent_color',
+      color.toARGB32().toString(),
+    );
     notifyListeners();
   }
 

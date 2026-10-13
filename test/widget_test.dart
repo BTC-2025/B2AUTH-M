@@ -14,7 +14,9 @@ void main() {
     await LocalStorageService.init();
   });
 
-  testWidgets('B2AuthApp initialization smoke test', (WidgetTester tester) async {
+  testWidgets('B2AuthApp initialization smoke test', (
+    WidgetTester tester,
+  ) async {
     await tester.pumpWidget(
       MultiProvider(
         providers: [

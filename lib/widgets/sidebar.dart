@@ -21,9 +21,14 @@ class Sidebar extends StatelessWidget {
       context: context,
       builder: (ctx) => AlertDialog(
         title: const Text('Sign Out'),
-        content: const Text('Are you sure you want to sign out of B2Auth? You will be redirected to the Login Screen.'),
+        content: const Text(
+          'Are you sure you want to sign out of B2Auth? You will be redirected to the Login Screen.',
+        ),
         actions: [
-          TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('Cancel')),
+          TextButton(
+            onPressed: () => Navigator.pop(ctx),
+            child: const Text('Cancel'),
+          ),
           TextButton(
             onPressed: () {
               Navigator.pop(ctx);
@@ -33,7 +38,13 @@ class Sidebar extends StatelessWidget {
                 (route) => false,
               );
             },
-            child: const Text('Sign Out', style: TextStyle(color: AppColors.error, fontWeight: FontWeight.bold)),
+            child: const Text(
+              'Sign Out',
+              style: TextStyle(
+                color: AppColors.error,
+                fontWeight: FontWeight.bold,
+              ),
+            ),
           ),
         ],
       ),
@@ -73,7 +84,10 @@ class Sidebar extends StatelessWidget {
                     decoration: BoxDecoration(
                       color: Colors.white,
                       borderRadius: BorderRadius.circular(9),
-                      border: Border.all(color: AppColors.primary.withValues(alpha: 0.12), width: 1),
+                      border: Border.all(
+                        color: AppColors.primary.withValues(alpha: 0.12),
+                        width: 1,
+                      ),
                       boxShadow: [
                         BoxShadow(
                           color: AppColors.primary.withValues(alpha: 0.08),
@@ -90,14 +104,18 @@ class Sidebar extends StatelessWidget {
                           'assets/Auth_img.png',
                           fit: BoxFit.contain,
                           errorBuilder: (context, error, stackTrace) =>
-                              const Icon(Icons.shield_outlined, color: AppColors.primary, size: 22),
+                              const Icon(
+                                Icons.shield_outlined,
+                                color: AppColors.primary,
+                                size: 22,
+                              ),
                         ),
                       ),
                     ),
                   ),
                   const SizedBox(width: 10),
                   Text(
-                    'B2Auth', 
+                    'B2Auth',
                     style: AppTextStyles.cardTitle.copyWith(
                       fontSize: 18,
                       letterSpacing: -0.5,
@@ -206,34 +224,40 @@ class _SidebarItemState extends State<_SidebarItem> {
                       ),
                     ]
                   : (_isHovered
-                      ? [
-                          // Hover state
-                          const BoxShadow(
-                            color: AppColors.darkShadow,
-                            offset: Offset(2, 2),
-                            blurRadius: 4,
-                          ),
-                          const BoxShadow(
-                            color: AppColors.lightShadow,
-                            offset: Offset(-2, -2),
-                            blurRadius: 4,
-                          ),
-                        ]
-                      : []),
+                        ? [
+                            // Hover state
+                            const BoxShadow(
+                              color: AppColors.darkShadow,
+                              offset: Offset(2, 2),
+                              blurRadius: 4,
+                            ),
+                            const BoxShadow(
+                              color: AppColors.lightShadow,
+                              offset: Offset(-2, -2),
+                              blurRadius: 4,
+                            ),
+                          ]
+                        : []),
             ),
             child: Row(
               children: [
                 Icon(
                   widget.icon,
-                  color: widget.isSelected ? AppColors.primary : AppColors.textSecondary,
+                  color: widget.isSelected
+                      ? AppColors.primary
+                      : AppColors.textSecondary,
                   size: 20,
                 ),
                 const SizedBox(width: 12),
                 Text(
                   widget.label,
                   style: AppTextStyles.body.copyWith(
-                    color: widget.isSelected ? AppColors.primary : AppColors.textSecondary,
-                    fontWeight: widget.isSelected ? FontWeight.bold : FontWeight.w500,
+                    color: widget.isSelected
+                        ? AppColors.primary
+                        : AppColors.textSecondary,
+                    fontWeight: widget.isSelected
+                        ? FontWeight.bold
+                        : FontWeight.w500,
                   ),
                 ),
               ],

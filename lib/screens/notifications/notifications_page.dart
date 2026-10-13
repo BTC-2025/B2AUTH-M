@@ -46,14 +46,14 @@ class _NotificationsPageState extends State<NotificationsPage> {
               Row(
                 children: [
                   _buildActionButton(
-                    icon: Icons.filter_list, 
-                    label: 'Filter', 
+                    icon: Icons.filter_list,
+                    label: 'Filter',
                     onTap: () => _showFeedback('Filter clicked'),
                   ),
                   const SizedBox(width: 12),
                   _buildActionButton(
-                    icon: Icons.swap_vert, 
-                    label: 'Sort', 
+                    icon: Icons.swap_vert,
+                    label: 'Sort',
                     onTap: provider.toggleSort,
                   ),
                 ],
@@ -70,7 +70,10 @@ class _NotificationsPageState extends State<NotificationsPage> {
               prefixIcon: const Icon(Icons.search),
               filled: true,
               fillColor: Colors.white.withValues(alpha: 0.5),
-              border: OutlineInputBorder(borderRadius: BorderRadius.circular(16), borderSide: BorderSide.none),
+              border: OutlineInputBorder(
+                borderRadius: BorderRadius.circular(16),
+                borderSide: BorderSide.none,
+              ),
             ),
           ),
           const SizedBox(height: 32),
@@ -90,7 +93,10 @@ class _NotificationsPageState extends State<NotificationsPage> {
                   background: Container(
                     alignment: Alignment.centerRight,
                     padding: const EdgeInsets.only(right: 20),
-                    decoration: BoxDecoration(color: AppColors.error, borderRadius: BorderRadius.circular(28)),
+                    decoration: BoxDecoration(
+                      color: AppColors.error,
+                      borderRadius: BorderRadius.circular(28),
+                    ),
                     child: const Icon(Icons.delete, color: Colors.white),
                   ),
                   child: _buildNotificationCard(
@@ -111,23 +117,29 @@ class _NotificationsPageState extends State<NotificationsPage> {
 
   IconData _getIconForCategory(NotificationCategory cat) {
     switch (cat) {
-      case NotificationCategory.critical: return Icons.security;
-      case NotificationCategory.devices: return Icons.smartphone;
-      default: return Icons.notifications;
+      case NotificationCategory.critical:
+        return Icons.security;
+      case NotificationCategory.devices:
+        return Icons.smartphone;
+      default:
+        return Icons.notifications;
     }
   }
 
   Color _getColorForCategory(NotificationCategory cat) {
     switch (cat) {
-      case NotificationCategory.critical: return AppColors.error;
-      case NotificationCategory.devices: return Colors.orange;
-      default: return AppColors.primary;
+      case NotificationCategory.critical:
+        return AppColors.error;
+      case NotificationCategory.devices:
+        return Colors.orange;
+      default:
+        return AppColors.primary;
     }
   }
 
   Widget _buildActionButton({
-    required IconData icon, 
-    required String label, 
+    required IconData icon,
+    required String label,
     required VoidCallback onTap,
     bool isActive = false,
   }) {
@@ -137,7 +149,9 @@ class _NotificationsPageState extends State<NotificationsPage> {
         duration: const Duration(milliseconds: 200),
         padding: const EdgeInsets.all(10),
         decoration: BoxDecoration(
-          color: isActive ? AppColors.primary.withValues(alpha: 0.1) : AppColors.background,
+          color: isActive
+              ? AppColors.primary.withValues(alpha: 0.1)
+              : AppColors.background,
           borderRadius: BorderRadius.circular(12),
           boxShadow: [
             BoxShadow(
@@ -153,8 +167,8 @@ class _NotificationsPageState extends State<NotificationsPage> {
           ],
         ),
         child: Icon(
-          icon, 
-          color: isActive ? AppColors.primary : AppColors.textPrimary, 
+          icon,
+          color: isActive ? AppColors.primary : AppColors.textPrimary,
           size: 22,
         ),
       ),
@@ -181,14 +195,21 @@ class _NotificationsPageState extends State<NotificationsPage> {
             children: [
               if (isCritical) ...[
                 Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 8,
+                    vertical: 4,
+                  ),
                   decoration: BoxDecoration(
                     color: AppColors.error,
                     borderRadius: BorderRadius.circular(8),
                   ),
                   child: const Text(
                     'Critical',
-                    style: TextStyle(color: Colors.white, fontSize: 10, fontWeight: FontWeight.bold),
+                    style: TextStyle(
+                      color: Colors.white,
+                      fontSize: 10,
+                      fontWeight: FontWeight.bold,
+                    ),
                   ),
                 ),
                 const SizedBox(height: 12),
@@ -222,11 +243,17 @@ class _NotificationsPageState extends State<NotificationsPage> {
                         const SizedBox(height: 12),
                         Row(
                           children: [
-                            const Icon(Icons.access_time, size: 14, color: AppColors.textSecondary),
+                            const Icon(
+                              Icons.access_time,
+                              size: 14,
+                              color: AppColors.textSecondary,
+                            ),
                             const SizedBox(width: 4),
                             Text(
                               time,
-                              style: AppTextStyles.caption.copyWith(fontSize: 13),
+                              style: AppTextStyles.caption.copyWith(
+                                fontSize: 13,
+                              ),
                             ),
                           ],
                         ),

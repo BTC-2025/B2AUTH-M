@@ -64,7 +64,8 @@ class _SplashScreenState extends State<SplashScreen>
     _controller.forward().then((_) {
       if (mounted) {
         final authNotifier = context.read<AuthNotifier>();
-        final hasSavedToken = LocalStorageService.getString('access_token') != null;
+        final hasSavedToken =
+            LocalStorageService.getString('access_token') != null;
         final bool shouldGoHome = authNotifier.isLoggedIn || hasSavedToken;
 
         Navigator.of(context).pushReplacement(
@@ -95,11 +96,7 @@ class _SplashScreenState extends State<SplashScreen>
           gradient: LinearGradient(
             begin: Alignment.topCenter,
             end: Alignment.bottomCenter,
-            colors: [
-              Color(0xFFF8FAFC),
-              Color(0xFFEFF6FF),
-              Colors.white,
-            ],
+            colors: [Color(0xFFF8FAFC), Color(0xFFEFF6FF), Colors.white],
           ),
         ),
         child: SafeArea(
@@ -126,7 +123,9 @@ class _SplashScreenState extends State<SplashScreen>
                             ),
                             boxShadow: [
                               BoxShadow(
-                                color: AppColors.primary.withValues(alpha: 0.15),
+                                color: AppColors.primary.withValues(
+                                  alpha: 0.15,
+                                ),
                                 blurRadius: 25,
                                 spreadRadius: 1,
                                 offset: const Offset(0, 10),
@@ -204,8 +203,9 @@ class _SplashScreenState extends State<SplashScreen>
                             child: LinearProgressIndicator(
                               value: _progressAnimation.value,
                               minHeight: 6,
-                              backgroundColor:
-                                  AppColors.primary.withValues(alpha: 0.1),
+                              backgroundColor: AppColors.primary.withValues(
+                                alpha: 0.1,
+                              ),
                               valueColor: const AlwaysStoppedAnimation<Color>(
                                 AppColors.primary,
                               ),

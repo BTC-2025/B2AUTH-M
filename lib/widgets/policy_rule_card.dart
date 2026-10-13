@@ -75,7 +75,11 @@ class PolicyRuleCard extends StatelessWidget {
                 activeThumbColor: AppColors.primaryBlue,
               ),
               IconButton(
-                icon: const Icon(Icons.close_rounded, size: 18, color: AppColors.textSecondary),
+                icon: const Icon(
+                  Icons.close_rounded,
+                  size: 18,
+                  color: AppColors.textSecondary,
+                ),
                 onPressed: onDelete,
                 padding: EdgeInsets.zero,
                 constraints: const BoxConstraints(),
@@ -88,7 +92,9 @@ class PolicyRuleCard extends StatelessWidget {
             style: TextStyle(
               fontSize: 14,
               fontWeight: FontWeight.bold,
-              color: policy.isEnabled ? AppColors.textPrimary : AppColors.textSecondary,
+              color: policy.isEnabled
+                  ? AppColors.textPrimary
+                  : AppColors.textSecondary,
             ),
             overflow: TextOverflow.ellipsis,
           ),
@@ -107,18 +113,32 @@ class PolicyRuleCard extends StatelessWidget {
                 child: Row(
                   mainAxisSize: MainAxisSize.min,
                   children: [
-                    const Text('IF ', style: TextStyle(fontSize: 11, fontWeight: FontWeight.w800, color: AppColors.textSecondary)),
+                    const Text(
+                      'IF ',
+                      style: TextStyle(
+                        fontSize: 11,
+                        fontWeight: FontWeight.w800,
+                        color: AppColors.textSecondary,
+                      ),
+                    ),
                     Flexible(
                       child: Text(
                         policy.conditionIf,
-                        style: const TextStyle(fontSize: 11, fontWeight: FontWeight.w600),
+                        style: const TextStyle(
+                          fontSize: 11,
+                          fontWeight: FontWeight.w600,
+                        ),
                         overflow: TextOverflow.ellipsis,
                       ),
                     ),
                   ],
                 ),
               ),
-              const Icon(Icons.arrow_right_alt_rounded, size: 16, color: AppColors.textSecondary),
+              const Icon(
+                Icons.arrow_right_alt_rounded,
+                size: 16,
+                color: AppColors.textSecondary,
+              ),
               Container(
                 padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
                 decoration: BoxDecoration(
@@ -129,10 +149,21 @@ class PolicyRuleCard extends StatelessWidget {
                 child: Row(
                   mainAxisSize: MainAxisSize.min,
                   children: [
-                    const Text('THEN ', style: TextStyle(fontSize: 11, fontWeight: FontWeight.w800, color: AppColors.textSecondary)),
+                    const Text(
+                      'THEN ',
+                      style: TextStyle(
+                        fontSize: 11,
+                        fontWeight: FontWeight.w800,
+                        color: AppColors.textSecondary,
+                      ),
+                    ),
                     Text(
                       _getActionLabel(policy.actionThen),
-                      style: TextStyle(fontSize: 10, fontWeight: FontWeight.bold, color: actionColor),
+                      style: TextStyle(
+                        fontSize: 10,
+                        fontWeight: FontWeight.bold,
+                        color: actionColor,
+                      ),
                     ),
                   ],
                 ),
