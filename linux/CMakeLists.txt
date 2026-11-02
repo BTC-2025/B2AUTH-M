@@ -121,6 +121,18 @@ install(CODE "
 install(DIRECTORY "${PROJECT_BUILD_DIR}/${FLUTTER_ASSET_DIR_NAME}"
   DESTINATION "${INSTALL_BUNDLE_DATA_DIR}" COMPONENT Runtime)
 
+# Install application desktop file and launcher icon
+if(EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/b2auth.desktop")
+  install(FILES "${CMAKE_CURRENT_SOURCE_DIR}/b2auth.desktop"
+    DESTINATION "${CMAKE_INSTALL_PREFIX}"
+    COMPONENT Runtime)
+endif()
+if(EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/b2auth.png")
+  install(FILES "${CMAKE_CURRENT_SOURCE_DIR}/b2auth.png"
+    DESTINATION "${INSTALL_BUNDLE_DATA_DIR}"
+    COMPONENT Runtime)
+endif()
+
 # Install the AOT library on non-Debug builds only.
 if(NOT CMAKE_BUILD_TYPE MATCHES "Debug")
   install(FILES "${AOT_LIBRARY}" DESTINATION "${INSTALL_BUNDLE_LIB_DIR}"

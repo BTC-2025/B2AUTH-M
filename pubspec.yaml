@@ -72,7 +72,7 @@ flutter_launcher_icons:
   windows:
     generate: true
     image_path: "assets/desktop_icon_1024.png"
-    icon_size: 48
+    icon_size: 256
   linux:
     generate: true
     image_path: "assets/desktop_icon_1024.png"
@@ -90,6 +90,7 @@ flutter:
   assets:
     - assets/Auth_img.png
     - assets/beta_logo .jpg
+    - assets/desktop_icon_1024.png
 
   # An image asset can refer to one or more resolution-specific "variants", see
   # https://flutter.dev/to/resolution-aware-images

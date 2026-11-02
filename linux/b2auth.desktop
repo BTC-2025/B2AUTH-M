@@ -1,0 +1,12 @@
+[Desktop Entry]
+Version=1.0
+Type=Application
+Name=B2Auth
+GenericName=Authentication & Security
+Comment=B2Auth Multi-Factor Authenticator and Security Suite
+Exec=b2auth
+Icon=b2auth
+Terminal=false
+Categories=Utility;Security;
+StartupWMClass=b2auth
+

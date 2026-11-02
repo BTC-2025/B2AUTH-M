@@ -45,11 +45,26 @@ static void my_application_activate(GApplication* application) {
   if (use_header_bar) {
     GtkHeaderBar* header_bar = GTK_HEADER_BAR(gtk_header_bar_new());
     gtk_widget_show(GTK_WIDGET(header_bar));
-    gtk_header_bar_set_title(header_bar, "b2auth");
+    gtk_header_bar_set_title(header_bar, "B2Auth");
     gtk_header_bar_set_show_close_button(header_bar, TRUE);
     gtk_window_set_titlebar(window, GTK_WIDGET(header_bar));
   } else {
-    gtk_window_set_title(window, "b2auth");
+    gtk_window_set_title(window, "B2Auth");
+  }
+
+  // Set window launcher icon
+  g_autoptr(GError) icon_error = nullptr;
+  g_autoptr(GdkPixbuf) app_icon =
+      gdk_pixbuf_new_from_file("data/flutter_assets/assets/desktop_icon_1024.png", &icon_error);
+  if (app_icon != nullptr) {
+    gtk_window_set_icon(window, app_icon);
+  } else {
+    g_clear_error(&icon_error);
+    g_autoptr(GdkPixbuf) fallback_icon =
+        gdk_pixbuf_new_from_file("assets/desktop_icon_1024.png", nullptr);
+    if (fallback_icon != nullptr) {
+      gtk_window_set_icon(window, fallback_icon);
+    }
   }
 
   gtk_window_set_default_size(window, 1280, 720);
