@@ -4,6 +4,7 @@ import '../../core/providers/account_provider.dart';
 import '../../core/models/user_account.dart';
 import '../../core/services/local_storage_service.dart';
 import '../theme/macos_theme.dart';
+import '../../manage_account_api_bundle/screens/manage_account_screen.dart';
 
 class MacOsSettingsView extends StatefulWidget {
   const MacOsSettingsView({super.key});
@@ -103,23 +104,55 @@ class _MacOsSettingsViewState extends State<MacOsSettingsView> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          // 1. Header
-          const Text(
-            'Account Settings',
-            style: TextStyle(
-              fontSize: 24,
-              fontWeight: FontWeight.w700,
-              color: MacOsTheme.textPrimary,
-              letterSpacing: -0.4,
-            ),
-          ),
-          const SizedBox(height: 4),
-          const Text(
-            'Manage your recovery information and security preferences.',
-            style: TextStyle(
-              fontSize: 14,
-              color: MacOsTheme.textTertiary,
-            ),
+          // 1. Header with Manage Account Action Button
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            crossAxisAlignment: CrossAxisAlignment.center,
+            children: [
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: const [
+                    Text(
+                      'Account Settings',
+                      style: TextStyle(
+                        fontSize: 24,
+                        fontWeight: FontWeight.w700,
+                        color: MacOsTheme.textPrimary,
+                        letterSpacing: -0.4,
+                      ),
+                    ),
+                    SizedBox(height: 4),
+                    Text(
+                      'Manage your recovery information and security preferences.',
+                      style: TextStyle(
+                        fontSize: 14,
+                        color: MacOsTheme.textTertiary,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              OutlinedButton.icon(
+                onPressed: () {
+                  Navigator.of(context).push(
+                    MaterialPageRoute(
+                      builder: (_) => const ManageAccountScreen(initialTab: 0),
+                    ),
+                  );
+                },
+                icon: const Icon(Icons.manage_accounts_outlined, size: 16),
+                label: const Text('Manage Account'),
+                style: OutlinedButton.styleFrom(
+                  foregroundColor: const Color(0xFF195BAC),
+                  side: const BorderSide(color: Color(0xFF195BAC), width: 1.2),
+                  padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(10),
+                  ),
+                ),
+              ),
+            ],
           ),
           const SizedBox(height: 28),
 

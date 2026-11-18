@@ -5,6 +5,7 @@ import '../../core/providers/account_provider.dart';
 import '../../screens/auth/notifiers/auth_notifier.dart';
 import '../../widgets/profile_avatar.dart';
 import '../theme/macos_theme.dart';
+import '../../manage_account_api_bundle/screens/manage_account_screen.dart';
 
 class MacOsToolbar extends StatelessWidget {
   final int activeIndex;
@@ -134,7 +135,11 @@ class MacOsToolbar extends StatelessWidget {
                       OutlinedButton(
                         onPressed: () {
                           Navigator.pop(dialogCtx);
-                          onTabSelected(2); // Settings tab
+                          Navigator.of(context).push(
+                            MaterialPageRoute(
+                              builder: (_) => const ManageAccountScreen(initialTab: 0),
+                            ),
+                          );
                         },
                         style: OutlinedButton.styleFrom(
                           side: const BorderSide(color: Color(0xFFCBD5E1), width: 1.0),

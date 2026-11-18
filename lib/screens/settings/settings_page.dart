@@ -20,6 +20,7 @@ import 'personalize_screen.dart';
 import 'help_support_page.dart';
 import '../auth/login_screen.dart';
 import '../auth/notifiers/auth_notifier.dart';
+import '../../manage_account_api_bundle/screens/manage_account_screen.dart';
 
 class SettingsPage extends StatefulWidget {
   final Function(int)? onSwitchTab;
@@ -333,6 +334,16 @@ class _SettingsPageState extends State<SettingsPage> {
                 _showActionFeedback('Checking notification settings...');
               }
             }
+          ),
+          const SizedBox(height: 6),
+          _buildQuickActionTile(
+            Icons.manage_accounts_outlined, 
+            'Manage your Account', 
+            const Color(0xFF195BAC),
+            () => Navigator.push(
+              context, 
+              MaterialPageRoute(builder: (_) => const ManageAccountScreen(initialTab: 0)),
+            ),
           ),
           const SizedBox(height: 6),
           _buildQuickActionTile(

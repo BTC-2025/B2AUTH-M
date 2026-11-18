@@ -1,0 +1,134 @@
+# ════════════════════════════════════════════════════════════════════════════════
+# MASTER INSTRUCTION PROMPT: TRANSFER & RUN "MANAGE ACCOUNT" IN NEW PROJECT
+# ════════════════════════════════════════════════════════════════════════════════
+# Copy everything below this line and paste it into your target project's AI assistant / developer prompt:
+
+You are tasked with integrating the complete "Manage Account" module into this Flutter project.
+The self-contained bundle is located in `manage_account_api_bundle/` (or copied directly into `lib/`).
+It includes the full 7-tab UI screens, dropdown profile card, models, providers, repositories, theme constants, and resilient API network layer.
+
+Here is the step-by-step implementation guide:
+
+---
+
+### STEP 1: Verify Dependencies in `pubspec.yaml`
+Ensure these dependencies exist in your `pubspec.yaml`:
+```yaml
+dependencies:
+  flutter:
+    sdk: flutter
+  flutter_riverpod: ^2.6.1
+  http: ^1.2.2
+  file_picker: ^11.0.3 # or ^8.0.0+
+  http_parser: any
+```
+Run `flutter pub get`.
+
+---
+
+### STEP 2: Wrap App with `ProviderScope`
+In your `main.dart`, wrap the root application widget in `ProviderScope`:
+```dart
+import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+
+void main() {
+  WidgetsFlutterBinding.ensureInitialized();
+  runApp(
+    const ProviderScope(
+      child: MyApp(),
+    ),
+  );
+}
+```
+
+Optional: To customize the API base URL:
+```dart
+import 'manage_account_api_bundle/core/network/api_client.dart';
+
+// In main() or on app init:
+ApiClient.setBaseUrl('https://api.bnxmail.com');
+```
+
+---
+
+### STEP 3: Navigating to Manage Account
+
+#### 1. Open the Full 7-Tab "Manage Account" Screen
+```dart
+import 'package:flutter/material.dart';
+import 'manage_account_api_bundle/screens/manage_account_screen.dart';
+
+Navigator.push(
+  context,
+  MaterialPageRoute(
+    builder: (_) => const ManageAccountScreen(
+      initialTab: 0, // 0 = Overview/Home, 1 = Personal Info, 2 = Data & Privacy, 3 = Security, 4 = People & Sharing, 5 = Payments, 6 = About
+    ),
+  ),
+);
+```
+
+#### 2. Show the Account Menu Dropdown / Popup Card
+```dart
+import 'package:flutter/material.dart';
+import 'manage_account_api_bundle/widgets/account_menu_card.dart';
+
+// Inside a PopupMenu, Dialog, Overlay, or Page:
+AccountMenuCard(
+  onClose: () => Navigator.pop(context),
+  onManageBranches: () {
+    // Navigate to Manage Branches if available in your project
+  },
+  onManageSubIds: () {
+    // Navigate to Manage SubIDs if available in your project
+  },
+  onAddAccount: () {
+    // Navigate to Login/Register screen
+  },
+  onSignOut: () {
+    // Navigate to Login screen after all accounts signed out
+  },
+)
+```
+
+---
+
+### STEP 4: Accessing Current User & Account Providers
+```dart
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'manage_account_api_bundle/data/providers/account_provider.dart';
+import 'manage_account_api_bundle/data/providers/settings_provider.dart';
+
+// In any ConsumerWidget:
+Widget build(BuildContext context, WidgetRef ref) {
+  final activeAccount = ref.watch(activeAccountProvider);
+  final allAccounts = ref.watch(accountsProvider);
+  final settingsState = ref.watch(settingsProvider);
+
+  return Text('Signed in as: ${activeAccount.name} (${activeAccount.email})');
+}
+```
+
+---
+
+### BUNDLE STRUCTURE OVERVIEW:
+- `manage_account_api_bundle/screens/manage_account_screen.dart`: Complete 7-tab Manage Account screen.
+- `manage_account_api_bundle/widgets/account_menu_card.dart`: Top-bar dropdown profile card with multi-account switcher.
+- `manage_account_api_bundle/core/widgets/avatar_widget.dart`: Multi-color initial/remote image avatar widget.
+- `manage_account_api_bundle/core/theme/`: `colors.dart`, `neumorphic.dart`.
+- `manage_account_api_bundle/core/network/`:
+  - `api_client.dart`: Central HTTP client with auto 401 refresh & uniform error handling.
+  - `token_service.dart`: Cross-platform resilient session and token persistence.
+  - `api_exception.dart`: Typed API exception.
+- `manage_account_api_bundle/data/providers/`:
+  - `account_provider.dart`: Account list, switching, sign-out, avatar upload/remove.
+  - `settings_provider.dart`: User settings, signatures, 2FA, language, text style.
+- `manage_account_api_bundle/data/repositories/`:
+  - `user_repository.dart`: Profile, sub-IDs, connected emails, devices.
+  - `settings_repository.dart`: General settings, signatures, 2FA setup/verify.
+  - `storage_repository.dart`: Mailbox & account storage quotas.
+  - `subscription_repository.dart`: Active subscriptions & plans.
+  - `auth_repository.dart`: Login, logout, multi-account session management.
+- `manage_account_api_bundle/models/`:
+  - `account_model.dart`, `user_model.dart`, `user_settings_model.dart`, `two_factor_model.dart`, `signature_model.dart`, `blocked_contact_model.dart`.

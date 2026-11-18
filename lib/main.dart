@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart' show ProviderScope;
 import 'package:provider/provider.dart';
 import 'core/theme/app_theme.dart';
 import 'screens/splash_screen.dart';
@@ -18,19 +19,21 @@ void main() async {
   await LocalStorageService.init();
   
   runApp(
-    MultiProvider(
-      providers: [
-        ChangeNotifierProvider(create: (_) => AccountProvider()),
-        ChangeNotifierProvider(create: (_) => AuthNotifier()),
-        ChangeNotifierProvider(create: (_) => SettingsProvider()),
-        ChangeNotifierProvider(create: (_) => NotificationProvider()),
-        ChangeNotifierProvider(create: (_) => SecurityProvider()),
-        ChangeNotifierProvider(create: (_) => LocationProvider()),
-        ChangeNotifierProvider(create: (_) => ThreatProvider()),
-        ChangeNotifierProvider(create: (_) => PasskeyProvider()),
-        ChangeNotifierProvider(create: (_) => ZeroTrustProvider()),
-      ],
-      child: const B2AuthApp(),
+    ProviderScope(
+      child: MultiProvider(
+        providers: [
+          ChangeNotifierProvider(create: (_) => AccountProvider()),
+          ChangeNotifierProvider(create: (_) => AuthNotifier()),
+          ChangeNotifierProvider(create: (_) => SettingsProvider()),
+          ChangeNotifierProvider(create: (_) => NotificationProvider()),
+          ChangeNotifierProvider(create: (_) => SecurityProvider()),
+          ChangeNotifierProvider(create: (_) => LocationProvider()),
+          ChangeNotifierProvider(create: (_) => ThreatProvider()),
+          ChangeNotifierProvider(create: (_) => PasskeyProvider()),
+          ChangeNotifierProvider(create: (_) => ZeroTrustProvider()),
+        ],
+        child: const B2AuthApp(),
+      ),
     ),
   );
 }
