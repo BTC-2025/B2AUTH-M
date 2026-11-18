@@ -26,9 +26,15 @@ class _MacOsHomeShellState extends State<MacOsHomeShell> {
   void initState() {
     super.initState();
     WidgetsBinding.instance.addPostFrameCallback((_) {
-      final token = LocalStorageService.getString('access_token') ?? '';
+      final accProvider = context.read<AccountProvider>();
+      final selected = accProvider.selectedAccount;
+      final selectedEmail = selected?.email.trim().toLowerCase() ?? '';
+      final token = selected?.token ??
+          (selectedEmail.isNotEmpty ? LocalStorageService.getString('token_$selectedEmail') : null) ??
+          (selected != null ? LocalStorageService.getAccountToken(selected.id) : null) ??
+          LocalStorageService.getString('access_token') ?? '';
       if (token.isNotEmpty) {
-        context.read<AccountProvider>().fetchProfileFromApi(token);
+        accProvider.fetchProfileFromApi(token, targetAccountId: selected?.id);
       }
     });
   }

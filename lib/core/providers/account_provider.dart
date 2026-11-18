@@ -16,16 +16,10 @@ class AccountProvider with ChangeNotifier {
   }
 
   bool _isSameAccount(UserAccount a, UserAccount b) {
-    if (a.id == b.id) return true;
+    if (a.id.isNotEmpty && b.id.isNotEmpty && a.id == b.id) return true;
     final aEmail = a.email.trim().toLowerCase();
     final bEmail = b.email.trim().toLowerCase();
     if (aEmail.isNotEmpty && bEmail.isNotEmpty && aEmail == bEmail) return true;
-    final aUname = a.username.trim().toLowerCase();
-    final bUname = b.username.trim().toLowerCase();
-    if (aUname.isNotEmpty && bUname.isNotEmpty && aUname == bUname) return true;
-    final aPrefix = aEmail.contains('@') ? aEmail.split('@').first : aEmail;
-    final bPrefix = bEmail.contains('@') ? bEmail.split('@').first : bEmail;
-    if (aPrefix.isNotEmpty && bPrefix.isNotEmpty && aPrefix == bPrefix) return true;
     return false;
   }
 
@@ -39,12 +33,7 @@ class AccountProvider with ChangeNotifier {
         final existing = unique[existingIndex];
         if (acc.isPrimary && !existing.isPrimary) {
           unique[existingIndex] = acc;
-        } else if (acc.email.contains('@') && !existing.email.contains('@')) {
-          unique[existingIndex] = acc;
         } else if (acc.lastUsed.isAfter(existing.lastUsed)) {
-          if (existing.email.contains('@') && !acc.email.contains('@')) {
-            acc.email = existing.email;
-          }
           unique[existingIndex] = acc;
         }
       }
@@ -83,76 +72,74 @@ class AccountProvider with ChangeNotifier {
     notifyListeners();
   }
 
-  /// Sync real-time profile details from GET /users/me, GET /emails/list, GET /users/recovery
-  Future<void> fetchProfileFromApi(String token) async {
+  /// Sync real-time profile details from GET /users/me and GET /users/recovery
+  Future<void> fetchProfileFromApi(String token, {String? targetAccountId}) async {
     if (token.isEmpty) return;
 
     try {
+      UserAccount? target;
+      if (targetAccountId != null && targetAccountId.isNotEmpty) {
+        final idx = _accounts.indexWhere((a) => a.id == targetAccountId);
+        if (idx != -1) target = _accounts[idx];
+      }
+      target ??= _selectedAccount;
+      if (target == null) return;
+
       // 1. GET /users/me
       final meRes = await _profileApiService.fetchCurrentUser(accessToken: token);
       if (meRes.success && meRes.data is Map<String, dynamic>) {
         final data = meRes.data as Map<String, dynamic>;
-        if (_selectedAccount != null) {
-          final String firstName = data['firstName'] ?? '';
-          final String lastName = data['lastName'] ?? '';
-          final String fullName = ('$firstName $lastName').trim();
-          if (fullName.isNotEmpty) {
-            _selectedAccount!.name = fullName;
-            _selectedAccount!.displayName = fullName;
-          }
-          if (data['username'] != null) _selectedAccount!.username = data['username'].toString();
-          if (data['email'] != null) _selectedAccount!.email = data['email'].toString();
+        final String firstName = data['firstName'] ?? '';
+        final String lastName = data['lastName'] ?? '';
+        final String fullName = ('$firstName $lastName').trim();
+        if (fullName.isNotEmpty) {
+          target.name = fullName;
+          target.displayName = fullName;
+        } else if (data['displayName'] != null && data['displayName'].toString().isNotEmpty) {
+          target.displayName = data['displayName'].toString();
+        }
 
-          final String? rawPicUrl = data['profilePictureUrl'] ?? data['avatarUrl'] ?? data['avatar'] ?? data['profilePicture'];
-          if (rawPicUrl != null && rawPicUrl.isNotEmpty) {
-            final String fullPicUrl = rawPicUrl.startsWith('http')
-                ? rawPicUrl
-                : 'https://api.bnxmail.com${rawPicUrl.startsWith('/') ? '' : '/'}$rawPicUrl';
-            _selectedAccount!.avatarUrl = fullPicUrl;
-          } else {
-            _selectedAccount!.avatarUrl = _selectedAccount!.effectiveAvatarUrl;
-          }
+        // Only assign email if the target account has no email yet
+        final apiEmail = data['email']?.toString().trim().toLowerCase();
+        if (target.email.isEmpty && apiEmail != null && apiEmail.isNotEmpty) {
+          target.email = apiEmail;
+        }
 
-          if (data['accountType'] != null) {
-            final String typeStr = data['accountType'].toString().toUpperCase();
-            _selectedAccount!.type = typeStr == 'BUSINESS' ? AccountType.business : AccountType.personal;
-          }
+        final String? rawPicUrl = data['profilePictureUrl'] ?? data['avatarUrl'] ?? data['avatar'] ?? data['profilePicture'];
+        if (rawPicUrl != null && rawPicUrl.isNotEmpty) {
+          final String fullPicUrl = rawPicUrl.startsWith('http')
+              ? rawPicUrl
+              : 'https://api.bnxmail.com${rawPicUrl.startsWith('/') ? '' : '/'}$rawPicUrl';
+          target.avatarUrl = fullPicUrl;
+        } else {
+          target.avatarUrl = target.effectiveAvatarUrl;
+        }
+
+        if (data['accountType'] != null) {
+          final String typeStr = data['accountType'].toString().toUpperCase();
+          target.type = (typeStr == 'BUSINESS' || typeStr == 'ORG_ADMIN')
+              ? AccountType.business
+              : AccountType.personal;
         }
       }
 
-      // 2. GET /emails/list
-      final emailRes = await _profileApiService.fetchUserEmails(accessToken: token);
-      if (emailRes.success && emailRes.data is List) {
-        final list = emailRes.data as List;
-        if (list.isNotEmpty && _selectedAccount != null) {
-          final primary = list.firstWhere((e) => e is Map && e['isPrimary'] == true, orElse: () => list.first);
-          if (primary is Map && primary['emailId'] != null) {
-            _selectedAccount!.email = primary['emailId'].toString();
-          }
-        }
-      }
-
-      // 3. GET /users/recovery
+      // 2. GET /users/recovery
       final recRes = await _profileApiService.fetchRecoveryOptions(accessToken: token);
       if (recRes.success && recRes.data is Map<String, dynamic>) {
         final recData = recRes.data as Map<String, dynamic>;
-        if (_selectedAccount != null) {
-          final recEmail = recData['recoveryEmail']?.toString();
-          final phone = recData['phoneNumber']?.toString();
-          if (recEmail != null && recEmail.isNotEmpty) {
-            _selectedAccount!.recoveryEmail = recEmail;
-            LocalStorageService.setString('recovery_email_${_selectedAccount!.id}', recEmail);
-          }
-          if (phone != null && phone.isNotEmpty) {
-            _selectedAccount!.phoneNumber = phone;
-            LocalStorageService.setString('recovery_phone_${_selectedAccount!.id}', phone);
-          }
+        final recEmail = recData['recoveryEmail']?.toString();
+        final phone = recData['phoneNumber']?.toString();
+        if (recEmail != null && recEmail.isNotEmpty) {
+          target.recoveryEmail = recEmail;
+          LocalStorageService.setString('recovery_email_${target.id}', recEmail);
+        }
+        if (phone != null && phone.isNotEmpty) {
+          target.phoneNumber = phone;
+          LocalStorageService.setString('recovery_phone_${target.id}', phone);
         }
       }
 
-      if (_selectedAccount != null) {
-        updateAccount(_selectedAccount!);
-      }
+      updateAccount(target);
     } catch (e) {
       debugPrint('⚠️ [ACCOUNT PROVIDER] Real-time profile sync note: $e');
     }
@@ -185,25 +172,30 @@ class AccountProvider with ChangeNotifier {
   }
 
   void switchAccount(String id, {dynamic authNotifier}) {
-    _selectedAccount = _accounts.firstWhere(
-      (a) => a.id == id,
-      orElse: () => _accounts.first,
-    );
+    final index = _accounts.indexWhere((a) => a.id == id);
+    if (index != -1) {
+      _selectedAccount = _accounts[index];
+    } else if (_accounts.isNotEmpty) {
+      _selectedAccount = _accounts.first;
+    } else {
+      return;
+    }
     _selectedAccount!.lastUsed = DateTime.now();
 
+    final cleanEmail = _selectedAccount!.email.trim().toLowerCase();
     final accountToken = _selectedAccount!.token ??
         LocalStorageService.getAccountToken(_selectedAccount!.id) ??
         LocalStorageService.getString('token_${_selectedAccount!.id}') ??
-        LocalStorageService.getString('token_${_selectedAccount!.email.toLowerCase()}') ??
-        LocalStorageService.getString('token_${_selectedAccount!.username.toLowerCase()}') ??
-        LocalStorageService.getString('access_token');
+        (cleanEmail.isNotEmpty ? LocalStorageService.getString('token_$cleanEmail') : null);
 
     if (accountToken != null && accountToken.isNotEmpty) {
       _selectedAccount!.token = accountToken;
       LocalStorageService.setString('access_token', accountToken);
-      LocalStorageService.setString('active_email', _selectedAccount!.email);
+      if (cleanEmail.isNotEmpty) {
+        LocalStorageService.setString('active_email', cleanEmail);
+        LocalStorageService.setString('token_$cleanEmail', accountToken);
+      }
       LocalStorageService.setAccountToken(_selectedAccount!.id, accountToken);
-      LocalStorageService.setString('token_${_selectedAccount!.email.toLowerCase()}', accountToken);
 
       if (authNotifier != null) {
         try {
@@ -211,7 +203,7 @@ class AccountProvider with ChangeNotifier {
         } catch (_) {}
       }
 
-      fetchProfileFromApi(accountToken);
+      fetchProfileFromApi(accountToken, targetAccountId: _selectedAccount!.id);
     }
 
     LocalStorageService.setSelectedAccountId(_selectedAccount!.id);
@@ -235,15 +227,17 @@ class AccountProvider with ChangeNotifier {
     if (account.avatarUrl == null || account.avatarUrl!.isEmpty) {
       account.avatarUrl = account.effectiveAvatarUrl;
     }
+    final cleanEmail = account.email.trim().toLowerCase();
     if (account.token != null && account.token!.isNotEmpty) {
       LocalStorageService.setAccountToken(account.id, account.token!);
       LocalStorageService.setString('token_${account.id}', account.token!);
-      LocalStorageService.setString('token_${account.email.toLowerCase()}', account.token!);
+      if (cleanEmail.isNotEmpty) {
+        LocalStorageService.setString('token_$cleanEmail', account.token!);
+      }
     } else {
       final existingToken = LocalStorageService.getAccountToken(account.id) ??
           LocalStorageService.getString('token_${account.id}') ??
-          LocalStorageService.getString('token_${account.email.toLowerCase()}') ??
-          LocalStorageService.getString('access_token');
+          (cleanEmail.isNotEmpty ? LocalStorageService.getString('token_$cleanEmail') : null);
       if (existingToken != null && existingToken.isNotEmpty) {
         account.token = existingToken;
         LocalStorageService.setAccountToken(account.id, existingToken);

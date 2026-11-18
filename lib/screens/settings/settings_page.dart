@@ -340,10 +340,18 @@ class _SettingsPageState extends State<SettingsPage> {
             Icons.manage_accounts_outlined, 
             'Manage your Account', 
             const Color(0xFF195BAC),
-            () => Navigator.push(
-              context, 
-              MaterialPageRoute(builder: (_) => const ManageAccountScreen(initialTab: 0)),
-            ),
+            () {
+              final activeAcc = context.read<AccountProvider>().selectedAccount;
+              Navigator.push(
+                context, 
+                MaterialPageRoute(
+                  builder: (_) => ManageAccountScreen(
+                    initialTab: 0,
+                    accountEmail: activeAcc?.email,
+                  ),
+                ),
+              );
+            },
           ),
           const SizedBox(height: 6),
           _buildQuickActionTile(

@@ -75,6 +75,10 @@ void main() {
       final sessions = await UserRepository.getSessions();
       expect(sessions, isA<List>());
 
+      // Test 8b: GET /api/users/activity-logs (Security & Activity Audit Logs)
+      final activityLogs = await UserRepository.getActivityLogs();
+      expect(activityLogs, isA<List>());
+
       // Test 9: GET /api/settings/language
       final language = await SettingsRepository.getLanguage();
       expect(language, isNotEmpty);

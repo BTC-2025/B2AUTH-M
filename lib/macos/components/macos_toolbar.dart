@@ -137,7 +137,10 @@ class MacOsToolbar extends StatelessWidget {
                           Navigator.pop(dialogCtx);
                           Navigator.of(context).push(
                             MaterialPageRoute(
-                              builder: (_) => const ManageAccountScreen(initialTab: 0),
+                              builder: (_) => ManageAccountScreen(
+                                initialTab: 0,
+                                accountEmail: user?.email,
+                              ),
                             ),
                           );
                         },

@@ -186,7 +186,10 @@ class AccountMenuCard extends ConsumerWidget {
                     Navigator.push(
                       context,
                       MaterialPageRoute(
-                        builder: (_) => const ManageAccountScreen(initialTab: 0),
+                        builder: (_) => ManageAccountScreen(
+                          initialTab: 0,
+                          accountEmail: activeAccount.email,
+                        ),
                       ),
                     );
                   },

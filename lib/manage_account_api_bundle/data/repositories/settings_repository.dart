@@ -214,19 +214,24 @@ class SettingsRepository {
   // ── 7. Two-Factor Authentication (2FA) ─────────────────────────────────────
 
   /// POST /api/users/2fa/setup
-  static Future<TwoFactorSetupData> setup2FA() async {
+  static Future<TwoFactorSetupData> setup2FA([String? accountEmail]) async {
     print('[SETTINGS] POST /api/users/2fa/setup');
-    final res = await ApiClient.post('/api/users/2fa/setup');
+    final res = await ApiClient.post('/api/users/2fa/setup', accountEmail: accountEmail);
     final data = res['data'] as Map<String, dynamic>? ?? res;
     return TwoFactorSetupData.fromJson(data);
   }
 
   /// POST /api/users/2fa/verify
-  static Future<bool> verify2FA(String code) async {
+  static Future<bool> verify2FA(String code, [String? accountEmail]) async {
     print('[SETTINGS] POST /api/users/2fa/verify');
     final res = await ApiClient.post(
       '/api/users/2fa/verify',
-      body: {'code': code.trim()},
+      body: {
+        'code': code.trim(),
+        'totpCode': code.trim(),
+        'verificationCode': code.trim(),
+      },
+      accountEmail: accountEmail,
     );
     final success = res['success'] == true ||
         res['verified'] == true ||
@@ -236,11 +241,15 @@ class SettingsRepository {
   }
 
   /// 3.3 Disable 2FA: POST /api/users/2fa/disable
-  static Future<bool> disable2FA() async {
+  static Future<bool> disable2FA({String? password, String? code, String? accountEmail}) async {
     print('[SETTINGS] POST /api/users/2fa/disable');
+    final body = <String, dynamic>{};
+    if (password != null && password.isNotEmpty) body['password'] = password;
+    if (code != null && code.isNotEmpty) body['code'] = code;
     final res = await ApiClient.post(
       '/api/users/2fa/disable',
-      body: {},
+      body: body,
+      accountEmail: accountEmail,
     );
     return res['success'] == true || res['error'] == null;
   }

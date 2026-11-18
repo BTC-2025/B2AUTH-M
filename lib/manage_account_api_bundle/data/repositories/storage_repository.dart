@@ -143,12 +143,12 @@ class StorageRepository {
 
   /// Fetches real-time mailbox quota from GET /api/mail/storage-quota
   /// Deduplicates concurrent requests so only one HTTP request is active at a time.
-  static Future<StorageQuota> fetchStorageQuota() async {
+  static Future<StorageQuota> fetchStorageQuota([String? accountEmail]) async {
     if (_inFlightRequest != null) {
       StorageDebug.log('[STORAGE] Duplicate request prevented');
       return _inFlightRequest!;
     }
-    _inFlightRequest = _performFetch();
+    _inFlightRequest = _performFetch(accountEmail);
     try {
       return await _inFlightRequest!;
     } finally {
@@ -156,10 +156,10 @@ class StorageRepository {
     }
   }
 
-  static Future<StorageQuota> _performFetch() async {
+  static Future<StorageQuota> _performFetch([String? accountEmail]) async {
     StorageDebug.log('[STORAGE] Fetching storage quota...');
     try {
-      final res = await ApiClient.get('/api/mail/storage-quota');
+      final res = await ApiClient.get('/api/mail/storage-quota', accountEmail: accountEmail);
       final bool success = res['success'] == true;
       final dynamic data = res['data'];
 
@@ -184,5 +184,5 @@ class StorageRepository {
   }
 
   /// Backward compatibility alias
-  static Future<StorageQuota> getStorageQuota() => fetchStorageQuota();
+  static Future<StorageQuota> getStorageQuota([String? accountEmail]) => fetchStorageQuota(accountEmail);
 }

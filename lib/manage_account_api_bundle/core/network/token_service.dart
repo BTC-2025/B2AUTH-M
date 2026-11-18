@@ -85,7 +85,10 @@ class TokenService {
         }
       }
       if (_memoryFallback.containsKey(_kAccess)) {
-        cachedAccessToken = _memoryFallback[_kAccess];
+        final candidate = _memoryFallback[_kAccess];
+        if (!isTokenExpired(candidate)) {
+          cachedAccessToken = candidate;
+        }
       }
     } catch (e) {
       debugPrint('[TOKEN SERVICE] Fallback storage read error: $e');
@@ -148,39 +151,168 @@ class TokenService {
     await _safeWrite(key: _kRefresh, value: refreshToken);
   }
 
-  static Future<String?> getAccessToken() async {
-    if (cachedAccessToken != null && cachedAccessToken!.isNotEmpty) {
-      return cachedAccessToken;
-    }
-    _ensureFallbackLoaded();
-    cachedAccessToken = await _safeRead(key: _kAccess);
-    if (cachedAccessToken != null && cachedAccessToken!.isNotEmpty) {
-      return cachedAccessToken;
-    }
+  static bool isTokenExpired(String? token) {
+    if (token == null || token.isEmpty || token.startsWith('offline_')) return true;
     try {
-      final token = LocalStorageService.getString('access_token') ??
+      final parts = token.split('.');
+      if (parts.length < 2) return false;
+      var normalized = parts[1].replaceAll('-', '+').replaceAll('_', '/');
+      while (normalized.length % 4 != 0) {
+        normalized += '=';
+      }
+      final decodedBytes = base64Decode(normalized);
+      final payload = jsonDecode(utf8.decode(decodedBytes));
+      if (payload is Map && payload.containsKey('exp')) {
+        final exp = int.tryParse(payload['exp'].toString());
+        if (exp != null) {
+          final now = DateTime.now().millisecondsSinceEpoch ~/ 1000;
+          return now >= exp;
+        }
+      }
+    } catch (_) {}
+    return false;
+  }
+
+  static Future<String?> getAccessToken([String? forEmail]) async {
+    String? cleanEmail = forEmail?.trim().toLowerCase();
+    if (cleanEmail == null || cleanEmail.isEmpty) {
+      try {
+        final activeEmail = LocalStorageService.getString('active_email');
+        if (activeEmail != null && activeEmail.isNotEmpty) {
+          cleanEmail = activeEmail.trim().toLowerCase();
+        }
+      } catch (_) {}
+    }
+
+    if (cleanEmail != null && cleanEmail.isNotEmpty) {
+      // 1. Look for account-specific token in LocalStorageService
+      try {
+        final tokByEmail = LocalStorageService.getString('token_$cleanEmail');
+        if (tokByEmail != null && !isTokenExpired(tokByEmail)) {
+          cachedAccessToken = tokByEmail;
+          return tokByEmail;
+        }
+
+        final localAccs = LocalStorageService.getAccounts();
+        for (final a in localAccs) {
+          if (a.email.trim().toLowerCase() == cleanEmail &&
+              a.token != null &&
+              !isTokenExpired(a.token)) {
+            cachedAccessToken = a.token;
+            return a.token;
+          }
+        }
+      } catch (_) {}
+
+      // 2. Look in registry
+      final registry = await getSavedAccountsFromRegistry();
+      for (final reg in registry) {
+        if ((reg['email']?.toString() ?? '').toLowerCase() == cleanEmail) {
+          final regTok = reg['accessToken']?.toString();
+          if (regTok != null && !isTokenExpired(regTok)) {
+            cachedAccessToken = regTok;
+            try {
+              await LocalStorageService.setString('token_$cleanEmail', regTok);
+              await LocalStorageService.setString('access_token', regTok);
+            } catch (_) {}
+            return regTok;
+          }
+        }
+      }
+
+      // 3. Look in cached settings
+      final settings = await getUserSettings(cleanEmail);
+      final sTok = settings?['accessToken']?.toString() ?? settings?['token']?.toString();
+      if (sTok != null && !isTokenExpired(sTok)) {
+        cachedAccessToken = sTok;
+        return sTok;
+      }
+
+      // 4. Look in memory fallback accounts
+      _ensureFallbackLoaded();
+      for (final entry in _memoryFallback.entries) {
+        if (entry.key.contains(cleanEmail) || entry.key == _kSavedAccountsRegistry) {
+          try {
+            if (entry.key == _kSavedAccountsRegistry) {
+              final regList = jsonDecode(entry.value);
+              if (regList is List) {
+                for (final item in regList) {
+                  final itemEmail = (item['email']?.toString() ?? '').toLowerCase();
+                  final itemToken = item['accessToken']?.toString();
+                  if (itemEmail == cleanEmail && itemToken != null && !isTokenExpired(itemToken)) {
+                    cachedAccessToken = itemToken;
+                    try {
+                      await LocalStorageService.setString('token_$cleanEmail', itemToken);
+                      await LocalStorageService.setString('access_token', itemToken);
+                    } catch (_) {}
+                    return itemToken;
+                  }
+                }
+              }
+            }
+          } catch (_) {}
+        }
+      }
+
+      // If a specific email was requested, do not bleed another account's token
+      if (forEmail != null && forEmail.trim().isNotEmpty) {
+        return null;
+      }
+    }
+
+    // Default active session resolution (Priority: LocalStorageService -> cached -> fallback)
+    try {
+      final activeTok = LocalStorageService.getString('access_token') ??
           LocalStorageService.getString('auth_token');
-      if (token != null && token.isNotEmpty) {
-        cachedAccessToken = token;
-        return cachedAccessToken;
+      if (activeTok != null && !isTokenExpired(activeTok)) {
+        cachedAccessToken = activeTok;
+        return activeTok;
       }
       final selectedId = LocalStorageService.getSelectedAccountId();
       if (selectedId != null && selectedId.isNotEmpty) {
         final accTok = LocalStorageService.getAccountToken(selectedId);
-        if (accTok != null && accTok.isNotEmpty) {
+        if (accTok != null && !isTokenExpired(accTok)) {
           cachedAccessToken = accTok;
-          return cachedAccessToken;
+          return accTok;
+        }
+      }
+      final activeEmail = LocalStorageService.getString('active_email');
+      if (activeEmail != null && activeEmail.isNotEmpty) {
+        final tok = LocalStorageService.getString('token_${activeEmail.toLowerCase()}');
+        if (tok != null && !isTokenExpired(tok)) {
+          cachedAccessToken = tok;
+          return tok;
         }
       }
       final accounts = LocalStorageService.getAccounts();
       for (final a in accounts) {
-        if (a.token != null && a.token!.isNotEmpty) {
+        if (a.token != null && !isTokenExpired(a.token)) {
           cachedAccessToken = a.token;
-          return cachedAccessToken;
+          return a.token;
         }
       }
     } catch (_) {}
-    return cachedAccessToken;
+
+    if (cachedAccessToken != null && !isTokenExpired(cachedAccessToken)) {
+      return cachedAccessToken;
+    }
+
+    _ensureFallbackLoaded();
+    final fallbackTok = await _safeRead(key: _kAccess);
+    if (fallbackTok != null && !isTokenExpired(fallbackTok)) {
+      cachedAccessToken = fallbackTok;
+      return fallbackTok;
+    }
+
+    // Fallback: check any valid token in _memoryFallback
+    for (final v in _memoryFallback.values) {
+      if (!isTokenExpired(v)) {
+        cachedAccessToken = v;
+        return v;
+      }
+    }
+
+    return null;
   }
 
   static Future<String?> getRefreshToken() async =>
@@ -220,38 +352,47 @@ class TokenService {
   // ── User Info & Active Session ─────────────────────────────────────────────
 
   static Future<String?> getUserEmail() async {
-    final email = await _safeRead(key: _kEmail);
-    if (email != null && email.isNotEmpty) return email;
-    final registry = await getSavedAccountsFromRegistry();
-    if (registry.isNotEmpty) {
-      final regEmail = registry.first['email']?.toString();
-      if (regEmail != null && regEmail.isNotEmpty) return regEmail;
-    }
     try {
+      final activeEmail = LocalStorageService.getString('active_email');
+      if (activeEmail != null && activeEmail.isNotEmpty) return activeEmail;
+
       final selectedId = LocalStorageService.getSelectedAccountId();
       final accounts = LocalStorageService.getAccounts();
       if (selectedId != null && accounts.isNotEmpty) {
-        final acc = accounts.firstWhere((a) => a.id == selectedId, orElse: () => accounts.first);
+        final acc = accounts.firstWhere(
+          (a) => a.id == selectedId,
+          orElse: () => accounts.firstWhere((a) => a.isPrimary, orElse: () => accounts.first),
+        );
         if (acc.email.isNotEmpty) return acc.email;
       } else if (accounts.isNotEmpty) {
         return accounts.first.email;
       }
     } catch (_) {}
+
+    final email = await _safeRead(key: _kEmail);
+    if (email != null && email.isNotEmpty) return email;
+
+    final registry = await getSavedAccountsFromRegistry();
+    if (registry.isNotEmpty) {
+      final regEmail = registry.first['email']?.toString();
+      if (regEmail != null && regEmail.isNotEmpty) return regEmail;
+    }
+
     return null;
   }
 
   static Future<String?> getUserName() async {
-    final name = await _safeRead(key: _kName);
-    if (name != null && name.isNotEmpty) return name;
     try {
       final selectedId = LocalStorageService.getSelectedAccountId();
       final accounts = LocalStorageService.getAccounts();
       if (selectedId != null && accounts.isNotEmpty) {
         final acc = accounts.firstWhere((a) => a.id == selectedId, orElse: () => accounts.first);
-        if (acc.name.isNotEmpty) return acc.name;
         if (acc.displayName.isNotEmpty) return acc.displayName;
+        if (acc.name.isNotEmpty) return acc.name;
       }
     } catch (_) {}
+    final name = await _safeRead(key: _kName);
+    if (name != null && name.isNotEmpty) return name;
     final email = await getUserEmail();
     if (email != null && email.isNotEmpty) {
       return email.split('@').first;
@@ -347,18 +488,33 @@ class TokenService {
     try {
       final localAccounts = LocalStorageService.getAccounts();
       final selectedId = LocalStorageService.getSelectedAccountId();
+      final activeEmail = (LocalStorageService.getString('active_email') ?? '').trim().toLowerCase();
       for (final a in localAccounts) {
         final email = a.email.trim().toLowerCase();
-        if (email.isNotEmpty && !list.any((r) => (r['email']?.toString() ?? '').toLowerCase() == email)) {
-          final tok = a.token ?? LocalStorageService.getAccountToken(a.id);
-          list.add({
-            'id': a.id,
-            'email': email,
-            'name': a.name.isNotEmpty ? a.name : email.split('@').first,
-            'accessToken': tok ?? '',
-            'isPrimary': a.isPrimary || a.id == selectedId,
-            'avatarUrl': a.avatarUrl ?? a.effectiveAvatarUrl,
-          });
+        if (email.isEmpty) continue;
+        final tok = a.token ??
+            LocalStorageService.getAccountToken(a.id) ??
+            LocalStorageService.getString('token_${a.id}') ??
+            LocalStorageService.getString('token_$email');
+        final isSelected = (a.id == selectedId || (activeEmail.isNotEmpty && email == activeEmail));
+        final existingIdx = list.indexWhere((r) => (r['email']?.toString() ?? '').toLowerCase() == email);
+        final entry = {
+          'id': a.id,
+          'email': email,
+          'name': a.displayName.isNotEmpty ? a.displayName : (a.name.isNotEmpty ? a.name : email.split('@').first),
+          'accessToken': (tok != null && tok.isNotEmpty) ? tok : '',
+          'isPrimary': a.isPrimary || isSelected,
+          'avatarUrl': a.avatarUrl ?? a.effectiveAvatarUrl,
+        };
+        if (existingIdx != -1) {
+          if (tok != null && tok.isNotEmpty) {
+            list[existingIdx]['accessToken'] = tok;
+          }
+          if (isSelected) {
+            list[existingIdx]['isPrimary'] = true;
+          }
+        } else {
+          list.add(entry);
         }
       }
     } catch (_) {}
@@ -378,7 +534,7 @@ class TokenService {
     String? refresh = account['refreshToken']?.toString() ?? targetExisting['refreshToken']?.toString();
 
     if (token == null || token.isEmpty) {
-      final currentToken = await getAccessToken();
+      final currentToken = await getAccessToken(email);
       if (currentToken != null && currentToken.isNotEmpty) {
         token = currentToken;
       }
@@ -405,62 +561,80 @@ class TokenService {
   static Future<void> switchActiveAccountSession(String id) async {
     final clean = id.trim().toLowerCase();
     cachedAccessToken = null;
-    final accounts = await getSavedAccountsFromRegistry();
-    final target = accounts.firstWhere(
-      (a) => (a['email']?.toString() ?? '').toLowerCase() == clean,
-      orElse: () => {},
-    );
-    if (target.isNotEmpty) {
-      String accessToken = target['accessToken']?.toString() ?? '';
-      String refreshToken = target['refreshToken']?.toString() ?? '';
-      final name = target['name']?.toString() ?? clean.split('@').first;
 
-      // If target does not have its own accessToken stored, inspect available registry tokens for a matching sub/email
-      if (accessToken.isEmpty) {
-        for (final acc in accounts) {
-          final tok = acc['accessToken']?.toString() ?? '';
-          if (tok.isNotEmpty) {
-            try {
-              final parts = tok.split('.');
-              if (parts.length == 3) {
-                final normalized = base64Url.normalize(parts[1]);
-                final payload = jsonDecode(utf8.decode(base64Url.decode(normalized)));
-                if (payload is Map && (payload['sub']?.toString().toLowerCase() == clean ||
-                    payload['email']?.toString().toLowerCase() == clean)) {
-                  accessToken = tok;
-                  refreshToken = acc['refreshToken']?.toString() ?? '';
-                  target['accessToken'] = tok;
-                  break;
-                }
-              }
-            } catch (_) {}
-          }
-        }
-      }
+    String targetEmail = clean;
+    String targetName = clean.split('@').first;
+    String targetId = clean;
+    String accessToken = '';
+    String refreshToken = '';
 
-      if (accessToken.isNotEmpty) {
-        await saveTokens(accessToken: accessToken, refreshToken: refreshToken);
-      }
-      await _safeWrite(key: _kEmail, value: clean);
-      await _safeWrite(key: _kName, value: name);
-    } else {
-      await _safeWrite(key: _kEmail, value: clean);
-    }
-
-    final updated = accounts.map((acc) {
-      final accEmail = (acc['email']?.toString() ?? '').toLowerCase();
-      return {...acc, 'isPrimary': accEmail == clean};
-    }).toList();
-    await _safeWrite(key: _kSavedAccountsRegistry, value: jsonEncode(updated));
+    // 1. Check LocalStorageService accounts first
     try {
-      final localAccounts = LocalStorageService.getAccounts();
-      for (final a in localAccounts) {
-        if (a.id.toLowerCase() == clean || a.email.toLowerCase() == clean) {
-          await LocalStorageService.setSelectedAccountId(a.id);
+      final localAccs = LocalStorageService.getAccounts();
+      for (final a in localAccs) {
+        if (a.id.toLowerCase() == clean || a.email.toLowerCase() == clean || a.username.toLowerCase() == clean) {
+          targetEmail = a.email.toLowerCase();
+          targetName = a.displayName.isNotEmpty ? a.displayName : a.name;
+          targetId = a.id;
+          accessToken = a.token ??
+              LocalStorageService.getAccountToken(a.id) ??
+              LocalStorageService.getString('token_${a.email.toLowerCase()}') ??
+              '';
           break;
         }
       }
     } catch (_) {}
+
+    // 2. Check saved registry
+    final accounts = await getSavedAccountsFromRegistry();
+    final target = accounts.firstWhere(
+      (a) => (a['email']?.toString() ?? '').toLowerCase() == clean ||
+             (a['id']?.toString() ?? '').toLowerCase() == clean,
+      orElse: () => {},
+    );
+    if (target.isNotEmpty) {
+      targetEmail = target['email']?.toString() ?? targetEmail;
+      targetName = target['name']?.toString() ?? targetName;
+      targetId = target['id']?.toString() ?? targetId;
+      if (accessToken.isEmpty) {
+        accessToken = target['accessToken']?.toString() ?? '';
+      }
+      if (refreshToken.isEmpty) {
+        refreshToken = target['refreshToken']?.toString() ?? '';
+      }
+    }
+
+    // 3. Fallback to settings cache
+    if (accessToken.isEmpty) {
+      final s = await getUserSettings(targetEmail);
+      if (s != null) {
+        accessToken = s['accessToken']?.toString() ?? s['token']?.toString() ?? '';
+        refreshToken = s['refreshToken']?.toString() ?? '';
+      }
+    }
+
+    if (accessToken.isNotEmpty) {
+      await saveTokens(accessToken: accessToken, refreshToken: refreshToken);
+      cachedAccessToken = accessToken;
+      try {
+        await LocalStorageService.setString('access_token', accessToken);
+        await LocalStorageService.setString('active_email', targetEmail);
+        await LocalStorageService.setSelectedAccountId(targetId);
+        await LocalStorageService.setAccountToken(targetId, accessToken);
+        await LocalStorageService.setString('token_$targetEmail', accessToken);
+      } catch (_) {}
+    }
+
+    await _safeWrite(key: _kEmail, value: targetEmail);
+    await _safeWrite(key: _kName, value: targetName);
+
+    final updated = accounts.map((acc) {
+      final accEmail = (acc['email']?.toString() ?? '').toLowerCase();
+      final accId = (acc['id']?.toString() ?? '').toLowerCase();
+      final isMatch = accEmail == targetEmail || accId == targetId;
+      return {...acc, 'isPrimary': isMatch};
+    }).toList();
+    await _safeWrite(key: _kSavedAccountsRegistry, value: jsonEncode(updated));
   }
 
   // ── Business Onboarding ────────────────────────────────────────────────────

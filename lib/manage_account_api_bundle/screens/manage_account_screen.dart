@@ -6,6 +6,7 @@ import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:file_picker/file_picker.dart';
 import '../core/network/api_exception.dart';
+import '../core/network/token_service.dart';
 import '../core/widgets/avatar_widget.dart';
 import '../data/providers/account_provider.dart';
 import '../data/repositories/storage_repository.dart';
@@ -17,6 +18,7 @@ import '../models/two_factor_model.dart';
 
 class ManageAccountScreen extends ConsumerStatefulWidget {
   final int initialTab;
+  final String? accountEmail;
   final VoidCallback? onAddAccount;
   final VoidCallback? onSignedOut;
   final VoidCallback? onNavigateToStorage;
@@ -24,6 +26,7 @@ class ManageAccountScreen extends ConsumerStatefulWidget {
   const ManageAccountScreen({
     super.key,
     this.initialTab = 0,
+    this.accountEmail,
     this.onAddAccount,
     this.onSignedOut,
     this.onNavigateToStorage,
@@ -36,7 +39,8 @@ class ManageAccountScreen extends ConsumerStatefulWidget {
 
 class _ManageAccountScreenState extends ConsumerState<ManageAccountScreen> {
   late int _selectedTab;
-  int _homeSubPage = 0; // 0 = Overview grid, 1 = Emails & Identities, 2 = Data & Privacy, 3 = Signing in to BNX
+  int _homeSubPage =
+      0; // 0 = Overview grid, 1 = Emails & Identities, 2 = Data & Privacy, 3 = Signing in to BNX
   bool _isLoading = false;
 
   // Personal Info local state
@@ -48,7 +52,14 @@ class _ManageAccountScreenState extends ConsumerState<ManageAccountScreen> {
   String _workAddress = 'None added';
   String _occupation = 'None added';
   String _bio = 'Write a brief description about yourself';
+  String? _recoveryEmail;
+  String? _phone;
+  DateTime? _dob;
   bool _isProfileMenuOpen = false;
+
+  // Active Sessions & Devices state
+  List<Map<String, String>> _activeSessions = [];
+  bool _isLoadingSessions = false;
 
   // Section 2.2: Storage Quota state
   StorageQuota? _storageQuota;
@@ -111,7 +122,14 @@ class _ManageAccountScreenState extends ConsumerState<ManageAccountScreen> {
     super.initState();
     _selectedTab = widget.initialTab.clamp(0, _tabs.length - 1);
     WidgetsBinding.instance.addPostFrameCallback((_) {
-      _loadAccountData();
+      if (widget.accountEmail != null && widget.accountEmail!.isNotEmpty) {
+        ref
+            .read(accountsProvider.notifier)
+            .switchAccount(widget.accountEmail!, ref);
+        _loadAccountData(widget.accountEmail);
+      } else {
+        _loadAccountData();
+      }
     });
   }
 
@@ -120,22 +138,33 @@ class _ManageAccountScreenState extends ConsumerState<ManageAccountScreen> {
   // ═══════════════════════════════════════════════════════════════════════════
 
   Future<void> _loadAccountData([String? accountEmail]) async {
-    final email = accountEmail ?? ref.read(activeAccountProvider).email;
-    _lastLoadedEmail = email.trim().toLowerCase();
+    final active = ref.read(activeAccountProvider);
+    String email =
+        accountEmail?.trim().toLowerCase() ?? active.email.trim().toLowerCase();
+    if (email.isEmpty || email == 'loading') {
+      final tokenEmail = await TokenService.getUserEmail();
+      if (tokenEmail != null && tokenEmail.isNotEmpty) {
+        email = tokenEmail.trim().toLowerCase();
+      }
+    }
+    if (email.isEmpty) return;
+    _lastLoadedEmail = email;
     _loadProfileSettings(email);
     _loadConnectedEmails();
-    _loadSubIds();
-    _loadStorageQuota();
+    _loadSubIds(email);
+    _loadStorageQuota(email);
     _loadSubscriptionData(email);
+    _loadActiveSessions(email);
+    _loadActivityLogs(email);
     ref.read(settingsProvider.notifier).loadAllSettings();
   }
 
   /// 2.2 Storage Quota (GET /api/mail/storage-quota)
-  Future<void> _loadStorageQuota() async {
+  Future<void> _loadStorageQuota([String? accountEmail]) async {
     if (!mounted) return;
     setState(() => _isLoadingStorageQuota = true);
     try {
-      final quota = await StorageRepository.fetchStorageQuota();
+      final quota = await StorageRepository.fetchStorageQuota(accountEmail);
       if (mounted) {
         setState(() {
           _storageQuota = quota;
@@ -145,6 +174,45 @@ class _ManageAccountScreenState extends ConsumerState<ManageAccountScreen> {
     } catch (e) {
       print('[MANAGE_ACCOUNT] loadStorageQuota error: $e');
       if (mounted) setState(() => _isLoadingStorageQuota = false);
+    }
+  }
+
+  /// Active Authenticated Sessions (GET /api/auth/sessions)
+  Future<void> _loadActiveSessions([String? accountEmail]) async {
+    if (!mounted) return;
+    setState(() => _isLoadingSessions = true);
+    try {
+      final sessions = await UserRepository.getSessions(email: accountEmail);
+      if (mounted) {
+        setState(() {
+          _activeSessions = sessions;
+          _isLoadingSessions = false;
+        });
+      }
+    } catch (e) {
+      print('[MANAGE_ACCOUNT] loadActiveSessions error: $e');
+      if (mounted) setState(() => _isLoadingSessions = false);
+    }
+  }
+
+  /// Activity Logs (GET /api/users/activity-logs)
+  List<Map<String, String>> _activityLogs = [];
+  bool _isLoadingActivityLogs = false;
+
+  Future<void> _loadActivityLogs([String? accountEmail]) async {
+    if (!mounted) return;
+    setState(() => _isLoadingActivityLogs = true);
+    try {
+      final logs = await UserRepository.getActivityLogs(accountEmail);
+      if (mounted) {
+        setState(() {
+          _activityLogs = logs;
+          _isLoadingActivityLogs = false;
+        });
+      }
+    } catch (e) {
+      print('[MANAGE_ACCOUNT] loadActivityLogs error: $e');
+      if (mounted) setState(() => _isLoadingActivityLogs = false);
     }
   }
 
@@ -180,7 +248,9 @@ class _ManageAccountScreenState extends ConsumerState<ManageAccountScreen> {
         if (success) {
           ScaffoldMessenger.of(context).showSnackBar(
             SnackBar(
-              content: Text('Verification link sent to $emailStr. Please check your inbox.'),
+              content: Text(
+                'Verification link sent to $emailStr. Please check your inbox.',
+              ),
               backgroundColor: const Color(0xFF1E8E3E),
               behavior: SnackBarBehavior.floating,
             ),
@@ -224,8 +294,9 @@ class _ManageAccountScreenState extends ConsumerState<ManageAccountScreen> {
       builder: (ctx) => StatefulBuilder(
         builder: (context, setDialogState) {
           final surfaceColor = isDark ? const Color(0xFF23262B) : Colors.white;
-          final borderColor =
-              isDark ? const Color(0xFF383C44) : const Color(0xFFE2E4E8);
+          final borderColor = isDark
+              ? const Color(0xFF383C44)
+              : const Color(0xFFE2E4E8);
 
           return Dialog(
             backgroundColor: surfaceColor,
@@ -250,7 +321,9 @@ class _ManageAccountScreenState extends ConsumerState<ManageAccountScreen> {
                           style: TextStyle(
                             fontSize: 18,
                             fontWeight: FontWeight.w600,
-                            color: isDark ? Colors.white : const Color(0xFF202124),
+                            color: isDark
+                                ? Colors.white
+                                : const Color(0xFF202124),
                           ),
                         ),
                         IconButton(
@@ -264,7 +337,9 @@ class _ManageAccountScreenState extends ConsumerState<ManageAccountScreen> {
                       'Enter your current password and a new password to keep your account secure.',
                       style: TextStyle(
                         fontSize: 13,
-                        color: isDark ? Colors.white60 : const Color(0xFF5F6368),
+                        color: isDark
+                            ? Colors.white60
+                            : const Color(0xFF5F6368),
                       ),
                     ),
                     const SizedBox(height: 20),
@@ -275,11 +350,14 @@ class _ManageAccountScreenState extends ConsumerState<ManageAccountScreen> {
                         labelText: 'Current Password',
                         suffixIcon: IconButton(
                           icon: Icon(
-                            obscureCurrent ? Icons.visibility_off : Icons.visibility,
+                            obscureCurrent
+                                ? Icons.visibility_off
+                                : Icons.visibility,
                             size: 20,
                           ),
-                          onPressed: () =>
-                              setDialogState(() => obscureCurrent = !obscureCurrent),
+                          onPressed: () => setDialogState(
+                            () => obscureCurrent = !obscureCurrent,
+                          ),
                         ),
                         border: OutlineInputBorder(
                           borderRadius: BorderRadius.circular(8),
@@ -294,7 +372,9 @@ class _ManageAccountScreenState extends ConsumerState<ManageAccountScreen> {
                         labelText: 'New Password',
                         suffixIcon: IconButton(
                           icon: Icon(
-                            obscureNew ? Icons.visibility_off : Icons.visibility,
+                            obscureNew
+                                ? Icons.visibility_off
+                                : Icons.visibility,
                             size: 20,
                           ),
                           onPressed: () =>
@@ -332,7 +412,8 @@ class _ManageAccountScreenState extends ConsumerState<ManageAccountScreen> {
                                   final newP = newPassController.text;
                                   if (oldP.isEmpty || newP.isEmpty) {
                                     setDialogState(() {
-                                      errorMessage = 'Please fill both password fields.';
+                                      errorMessage =
+                                          'Please fill both password fields.';
                                     });
                                     return;
                                   }
@@ -340,14 +421,25 @@ class _ManageAccountScreenState extends ConsumerState<ManageAccountScreen> {
                                     isSubmitting = true;
                                     errorMessage = null;
                                   });
-                                  final messenger = ScaffoldMessenger.of(context);
+                                  final messenger = ScaffoldMessenger.of(
+                                    context,
+                                  );
                                   try {
-                                    await UserRepository.changePassword(oldP, newP);
+                                    final currentEmail = ref
+                                        .read(activeAccountProvider)
+                                        .email;
+                                    await UserRepository.changePassword(
+                                      oldP,
+                                      newP,
+                                      email: currentEmail,
+                                    );
                                     if (ctx.mounted) Navigator.pop(ctx);
                                     if (mounted) {
                                       messenger.showSnackBar(
                                         const SnackBar(
-                                          content: Text('Password updated successfully!'),
+                                          content: Text(
+                                            'Password updated successfully!',
+                                          ),
                                           backgroundColor: Color(0xFF1E8E3E),
                                           behavior: SnackBarBehavior.floating,
                                         ),
@@ -356,7 +448,8 @@ class _ManageAccountScreenState extends ConsumerState<ManageAccountScreen> {
                                   } catch (e) {
                                     setDialogState(() {
                                       isSubmitting = false;
-                                      errorMessage = 'Failed to update password: $e';
+                                      errorMessage =
+                                          'Failed to update password: $e';
                                     });
                                   }
                                 },
@@ -482,14 +575,18 @@ class _ManageAccountScreenState extends ConsumerState<ManageAccountScreen> {
       builder: (dialogCtx) {
         return StatefulBuilder(
           builder: (ctx, setDialogState) {
-            final surfaceColor =
-                isDark ? const Color(0xFF1E293B) : Colors.white;
+            final surfaceColor = isDark
+                ? const Color(0xFF1E293B)
+                : Colors.white;
             return Dialog(
               shape: RoundedRectangleBorder(
                 borderRadius: BorderRadius.circular(20),
               ),
               backgroundColor: surfaceColor,
-              insetPadding: const EdgeInsets.symmetric(horizontal: 20, vertical: 24),
+              insetPadding: const EdgeInsets.symmetric(
+                horizontal: 20,
+                vertical: 24,
+              ),
               child: ConstrainedBox(
                 constraints: const BoxConstraints(maxWidth: 440),
                 child: Padding(
@@ -512,7 +609,9 @@ class _ManageAccountScreenState extends ConsumerState<ManageAccountScreen> {
                               style: TextStyle(
                                 fontSize: 18,
                                 fontWeight: FontWeight.bold,
-                                color: isDark ? Colors.white : const Color(0xFF202124),
+                                color: isDark
+                                    ? Colors.white
+                                    : const Color(0xFF202124),
                               ),
                             ),
                             const Spacer(),
@@ -527,18 +626,27 @@ class _ManageAccountScreenState extends ConsumerState<ManageAccountScreen> {
                           'Add your Bnx mail account to an authenticator app (such as Google Authenticator or Authy) using the secret key below:',
                           style: TextStyle(
                             fontSize: 13,
-                            color: isDark ? Colors.white70 : const Color(0xFF5F6368),
+                            color: isDark
+                                ? Colors.white70
+                                : const Color(0xFF5F6368),
                           ),
                         ),
                         const SizedBox(height: 14),
                         if (data.secret != null && data.secret!.isNotEmpty) ...[
                           Container(
-                            padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+                            padding: const EdgeInsets.symmetric(
+                              horizontal: 14,
+                              vertical: 10,
+                            ),
                             decoration: BoxDecoration(
-                              color: isDark ? const Color(0xFF0F172A) : const Color(0xFFF1F5F9),
+                              color: isDark
+                                  ? const Color(0xFF0F172A)
+                                  : const Color(0xFFF1F5F9),
                               borderRadius: BorderRadius.circular(10),
                               border: Border.all(
-                                color: isDark ? Colors.white12 : const Color(0xFFCBD5E1),
+                                color: isDark
+                                    ? Colors.white12
+                                    : const Color(0xFFCBD5E1),
                               ),
                             ),
                             child: Row(
@@ -555,13 +663,21 @@ class _ManageAccountScreenState extends ConsumerState<ManageAccountScreen> {
                                   ),
                                 ),
                                 IconButton(
-                                  icon: const Icon(Icons.copy_rounded, size: 18, color: Color(0xFF1A73E8)),
+                                  icon: const Icon(
+                                    Icons.copy_rounded,
+                                    size: 18,
+                                    color: Color(0xFF1A73E8),
+                                  ),
                                   tooltip: 'Copy Key',
                                   onPressed: () {
-                                    Clipboard.setData(ClipboardData(text: data.secret!));
+                                    Clipboard.setData(
+                                      ClipboardData(text: data.secret!),
+                                    );
                                     ScaffoldMessenger.of(context).showSnackBar(
                                       const SnackBar(
-                                        content: Text('Secret key copied to clipboard'),
+                                        content: Text(
+                                          'Secret key copied to clipboard',
+                                        ),
                                         behavior: SnackBarBehavior.floating,
                                       ),
                                     );
@@ -577,7 +693,9 @@ class _ManageAccountScreenState extends ConsumerState<ManageAccountScreen> {
                           style: TextStyle(
                             fontSize: 13,
                             fontWeight: FontWeight.w600,
-                            color: isDark ? Colors.white70 : const Color(0xFF202124),
+                            color: isDark
+                                ? Colors.white70
+                                : const Color(0xFF202124),
                           ),
                         ),
                         const SizedBox(height: 12),
@@ -592,12 +710,16 @@ class _ManageAccountScreenState extends ConsumerState<ManageAccountScreen> {
                                   height: 52,
                                   margin: EdgeInsets.only(right: i < 5 ? 8 : 0),
                                   decoration: BoxDecoration(
-                                    color: isDark ? const Color(0xFF0F172A) : const Color(0xFFF8FAFC),
+                                    color: isDark
+                                        ? const Color(0xFF0F172A)
+                                        : const Color(0xFFF8FAFC),
                                     borderRadius: BorderRadius.circular(10),
                                     border: Border.all(
                                       color: focusNodes[i].hasFocus
                                           ? const Color(0xFF1A73E8)
-                                          : (isDark ? Colors.white12 : const Color(0xFFE2E8F0)),
+                                          : (isDark
+                                                ? Colors.white12
+                                                : const Color(0xFFE2E8F0)),
                                       width: focusNodes[i].hasFocus ? 2.0 : 1.0,
                                     ),
                                   ),
@@ -611,7 +733,9 @@ class _ManageAccountScreenState extends ConsumerState<ManageAccountScreen> {
                                       style: TextStyle(
                                         fontSize: 20,
                                         fontWeight: FontWeight.bold,
-                                        color: isDark ? Colors.white : const Color(0xFF202124),
+                                        color: isDark
+                                            ? Colors.white
+                                            : const Color(0xFF202124),
                                       ),
                                       inputFormatters: [
                                         FilteringTextInputFormatter.digitsOnly,
@@ -628,7 +752,9 @@ class _ManageAccountScreenState extends ConsumerState<ManageAccountScreen> {
                                         } else if (val.isEmpty && i > 0) {
                                           focusNodes[i - 1].requestFocus();
                                         }
-                                        setDialogState(() => errorMessage = null);
+                                        setDialogState(
+                                          () => errorMessage = null,
+                                        );
                                       },
                                     ),
                                   ),
@@ -664,10 +790,13 @@ class _ManageAccountScreenState extends ConsumerState<ManageAccountScreen> {
                             onPressed: isVerifying
                                 ? null
                                 : () async {
-                                    final code = controllers.map((c) => c.text).join();
+                                    final code = controllers
+                                        .map((c) => c.text)
+                                        .join();
                                     if (code.length < 6) {
                                       setDialogState(() {
-                                        errorMessage = 'Please enter the full 6-digit code';
+                                        errorMessage =
+                                            'Please enter the full 6-digit code';
                                       });
                                       return;
                                     }
@@ -675,13 +804,21 @@ class _ManageAccountScreenState extends ConsumerState<ManageAccountScreen> {
                                       isVerifying = true;
                                       errorMessage = null;
                                     });
-                                    final res = await ref.read(settingsProvider.notifier).verify2FA(code);
+                                    final res = await ref
+                                        .read(settingsProvider.notifier)
+                                        .verify2FA(code);
                                     if (res.success) {
-                                      if (dialogCtx.mounted) Navigator.pop(dialogCtx);
+                                      if (dialogCtx.mounted) {
+                                        Navigator.pop(dialogCtx);
+                                      }
                                       if (mounted) {
-                                        ScaffoldMessenger.of(context).showSnackBar(
+                                        ScaffoldMessenger.of(
+                                          context,
+                                        ).showSnackBar(
                                           const SnackBar(
-                                            content: Text('Two-factor authentication enabled successfully!'),
+                                            content: Text(
+                                              'Two-factor authentication enabled successfully!',
+                                            ),
                                             backgroundColor: Color(0xFF1E8E3E),
                                             behavior: SnackBarBehavior.floating,
                                           ),
@@ -690,7 +827,9 @@ class _ManageAccountScreenState extends ConsumerState<ManageAccountScreen> {
                                     } else {
                                       setDialogState(() {
                                         isVerifying = false;
-                                        errorMessage = res.message ?? 'Verification failed';
+                                        errorMessage =
+                                            res.message ??
+                                            'Verification failed';
                                       });
                                     }
                                   },
@@ -720,9 +859,31 @@ class _ManageAccountScreenState extends ConsumerState<ManageAccountScreen> {
 
   Future<void> _loadProfileSettings([String? accountEmail]) async {
     try {
-      final email = accountEmail ?? ref.read(activeAccountProvider).email;
+      final active = ref.read(activeAccountProvider);
+      String email = accountEmail ?? active.email;
+      if (email.isEmpty || email == 'loading') {
+        final tokenEmail = await TokenService.getUserEmail();
+        if (tokenEmail != null && tokenEmail.isNotEmpty) {
+          email = tokenEmail;
+        }
+      }
       final settings = await UserRepository.getProfileData(email: email);
       if (settings != null && mounted) {
+        final phone = (settings['phoneNumber'] ?? settings['phone'])
+            ?.toString();
+        final recEmail = settings['recoveryEmail']?.toString();
+        DateTime? dob;
+        final rawDob = settings['dob'] ?? settings['birthday'];
+        if (rawDob != null) {
+          dob = DateTime.tryParse(rawDob.toString());
+        }
+        final name = (settings['fullName'] ?? settings['name'])?.toString();
+        final avatar =
+            (settings['profilePictureUrl'] ??
+                    settings['avatarUrl'] ??
+                    settings['profile_picture'])
+                ?.toString();
+
         setState(() {
           if (settings['nickname'] != null &&
               settings['nickname'].toString().isNotEmpty) {
@@ -766,38 +927,29 @@ class _ManageAccountScreenState extends ConsumerState<ManageAccountScreen> {
           } else {
             _bio = 'Write a brief description about yourself';
           }
+          if (phone != null && phone.isNotEmpty) {
+            _phone = phone;
+          }
+          if (recEmail != null && recEmail.isNotEmpty) {
+            _recoveryEmail = recEmail;
+          }
+          if (dob != null) {
+            _dob = dob;
+          }
         });
 
         // Also sync active account model fields if returned in settings
-        final activeAcc = ref.read(activeAccountProvider);
-        final phone =
-            (settings['phoneNumber'] ?? settings['phone'])?.toString();
-        final recEmail = settings['recoveryEmail']?.toString();
-        DateTime? dob;
-        final rawDob = settings['dob'] ?? settings['birthday'];
-        if (rawDob != null) {
-          dob = DateTime.tryParse(rawDob.toString());
-        }
-        final name = (settings['fullName'] ?? settings['name'])?.toString();
-        final avatar = (settings['profilePictureUrl'] ??
-                settings['avatarUrl'] ??
-                settings['profile_picture'])
-            ?.toString();
-
-        if ((phone != null && phone.isNotEmpty) ||
-            (recEmail != null && recEmail.isNotEmpty) ||
-            dob != null ||
-            (name != null && name.isNotEmpty) ||
-            (avatar != null && avatar.isNotEmpty)) {
-          ref.read(accountsProvider.notifier).updateAccountFields(
-                activeAcc.id,
-                phone: phone,
-                recoveryEmail: recEmail,
-                dob: dob,
-                name: name,
-                avatarUrl: avatar,
-              );
-        }
+        final targetId = active.id != 'loading' ? active.id : email;
+        ref
+            .read(accountsProvider.notifier)
+            .updateAccountFields(
+              targetId,
+              phone: _phone,
+              recoveryEmail: _recoveryEmail,
+              dob: _dob,
+              name: name,
+              avatarUrl: avatar,
+            );
       }
     } catch (e) {
       print('[MANAGE_ACCOUNT] loadProfileSettings error: $e');
@@ -861,8 +1013,9 @@ class _ManageAccountScreenState extends ConsumerState<ManageAccountScreen> {
       builder: (ctx) => StatefulBuilder(
         builder: (context, setDialogState) {
           final surfaceColor = isDark ? const Color(0xFF23262B) : Colors.white;
-          final borderColor =
-              isDark ? const Color(0xFF383C44) : const Color(0xFFE2E4E8);
+          final borderColor = isDark
+              ? const Color(0xFF383C44)
+              : const Color(0xFFE2E4E8);
 
           return Dialog(
             backgroundColor: surfaceColor,
@@ -880,158 +1033,177 @@ class _ManageAccountScreenState extends ConsumerState<ManageAccountScreen> {
                     mainAxisSize: MainAxisSize.min,
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                    Row(
-                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                      children: [
-                        Expanded(
-                          child: Text(
-                            'Create New Mailbox / Alias',
-                            style: TextStyle(
-                              fontSize: 18,
-                              fontWeight: FontWeight.w600,
-                              color:
-                                  isDark ? Colors.white : const Color(0xFF202124),
+                      Row(
+                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                        children: [
+                          Expanded(
+                            child: Text(
+                              'Create New Mailbox / Alias',
+                              style: TextStyle(
+                                fontSize: 18,
+                                fontWeight: FontWeight.w600,
+                                color: isDark
+                                    ? Colors.white
+                                    : const Color(0xFF202124),
+                              ),
                             ),
                           ),
-                        ),
-                        IconButton(
-                          icon: const Icon(Icons.close_rounded, size: 20),
-                          onPressed: () => Navigator.pop(ctx),
-                        ),
-                      ],
-                    ),
-                    const SizedBox(height: 8),
-                    Text(
-                      'Create a new linked mailbox identity for your account.',
-                      style: TextStyle(
-                        fontSize: 13,
-                        color:
-                            isDark ? Colors.white60 : const Color(0xFF5F6368),
-                      ),
-                    ),
-                    const SizedBox(height: 20),
-                    TextField(
-                      controller: nameCtrl,
-                      decoration: InputDecoration(
-                        labelText: 'Mailbox Name / Prefix',
-                        hintText: 'e.g. support or ashwin_work',
-                        suffixText: '@bnxmail.com',
-                        border: OutlineInputBorder(
-                          borderRadius: BorderRadius.circular(8),
-                        ),
-                      ),
-                    ),
-                    const SizedBox(height: 16),
-                    TextField(
-                      controller: passCtrl,
-                      obscureText: obscure,
-                      decoration: InputDecoration(
-                        labelText: 'Password',
-                        hintText: 'Enter secure password',
-                        suffixIcon: IconButton(
-                          icon: Icon(
-                            obscure ? Icons.visibility_off : Icons.visibility,
-                            size: 20,
+                          IconButton(
+                            icon: const Icon(Icons.close_rounded, size: 20),
+                            onPressed: () => Navigator.pop(ctx),
                           ),
-                          onPressed: () =>
-                              setDialogState(() => obscure = !obscure),
-                        ),
-                        border: OutlineInputBorder(
-                          borderRadius: BorderRadius.circular(8),
+                        ],
+                      ),
+                      const SizedBox(height: 8),
+                      Text(
+                        'Create a new linked mailbox identity for your account.',
+                        style: TextStyle(
+                          fontSize: 13,
+                          color: isDark
+                              ? Colors.white60
+                              : const Color(0xFF5F6368),
                         ),
                       ),
-                    ),
-                    const SizedBox(height: 24),
-                    Row(
-                      mainAxisAlignment: MainAxisAlignment.end,
-                      children: [
-                        TextButton(
-                          onPressed: () => Navigator.pop(ctx),
-                          child: const Text('Cancel'),
+                      const SizedBox(height: 20),
+                      TextField(
+                        controller: nameCtrl,
+                        decoration: InputDecoration(
+                          labelText: 'Mailbox Name / Prefix',
+                          hintText: 'e.g. support or ashwin_work',
+                          suffixText: '@bnxmail.com',
+                          border: OutlineInputBorder(
+                            borderRadius: BorderRadius.circular(8),
+                          ),
                         ),
-                        const SizedBox(width: 8),
-                        FilledButton(
-                          onPressed: isSubmitting
-                              ? null
-                              : () async {
-                                  final name = nameCtrl.text.trim();
-                                  final pass = passCtrl.text.trim();
-                                  if (name.isEmpty || pass.isEmpty) {
-                                    ScaffoldMessenger.of(context).showSnackBar(
-                                      const SnackBar(
-                                        content: Text('Please fill all fields'),
-                                        behavior: SnackBarBehavior.floating,
-                                      ),
-                                    );
-                                    return;
-                                  }
-                                  setDialogState(() => isSubmitting = true);
-                                  final messenger = ScaffoldMessenger.of(context);
-                                  try {
-                                    await UserRepository.createMailbox(
-                                      emailName: name,
-                                      password: pass,
-                                    );
-                                    if (ctx.mounted) Navigator.pop(ctx);
-                                    if (mounted) {
-                                      messenger.showSnackBar(
-                                        SnackBar(
+                      ),
+                      const SizedBox(height: 16),
+                      TextField(
+                        controller: passCtrl,
+                        obscureText: obscure,
+                        decoration: InputDecoration(
+                          labelText: 'Password',
+                          hintText: 'Enter secure password',
+                          suffixIcon: IconButton(
+                            icon: Icon(
+                              obscure ? Icons.visibility_off : Icons.visibility,
+                              size: 20,
+                            ),
+                            onPressed: () =>
+                                setDialogState(() => obscure = !obscure),
+                          ),
+                          border: OutlineInputBorder(
+                            borderRadius: BorderRadius.circular(8),
+                          ),
+                        ),
+                      ),
+                      const SizedBox(height: 24),
+                      Row(
+                        mainAxisAlignment: MainAxisAlignment.end,
+                        children: [
+                          TextButton(
+                            onPressed: () => Navigator.pop(ctx),
+                            child: const Text('Cancel'),
+                          ),
+                          const SizedBox(width: 8),
+                          FilledButton(
+                            onPressed: isSubmitting
+                                ? null
+                                : () async {
+                                    final name = nameCtrl.text.trim();
+                                    final pass = passCtrl.text.trim();
+                                    if (name.isEmpty || pass.isEmpty) {
+                                      ScaffoldMessenger.of(
+                                        context,
+                                      ).showSnackBar(
+                                        const SnackBar(
                                           content: Text(
-                                              'Mailbox "$name@bnxmail.com" created successfully'),
-                                          backgroundColor:
-                                              const Color(0xFF1E8E3E),
+                                            'Please fill all fields',
+                                          ),
                                           behavior: SnackBarBehavior.floating,
                                         ),
                                       );
-                                      await _loadConnectedEmails();
+                                      return;
                                     }
-                                  } catch (e) {
-                                    setDialogState(() => isSubmitting = false);
-                                    if (mounted) {
-                                      messenger.showSnackBar(
-                                        SnackBar(
-                                          content:
-                                              Text('Failed to create mailbox: $e'),
-                                          backgroundColor: Colors.redAccent,
-                                          behavior: SnackBarBehavior.floating,
-                                        ),
+                                    setDialogState(() => isSubmitting = true);
+                                    final messenger = ScaffoldMessenger.of(
+                                      context,
+                                    );
+                                    try {
+                                      await UserRepository.createMailbox(
+                                        emailName: name,
+                                        password: pass,
                                       );
+                                      if (ctx.mounted) Navigator.pop(ctx);
+                                      if (mounted) {
+                                        messenger.showSnackBar(
+                                          SnackBar(
+                                            content: Text(
+                                              'Mailbox "$name@bnxmail.com" created successfully',
+                                            ),
+                                            backgroundColor: const Color(
+                                              0xFF1E8E3E,
+                                            ),
+                                            behavior: SnackBarBehavior.floating,
+                                          ),
+                                        );
+                                        await _loadConnectedEmails();
+                                      }
+                                    } catch (e) {
+                                      setDialogState(
+                                        () => isSubmitting = false,
+                                      );
+                                      if (mounted) {
+                                        messenger.showSnackBar(
+                                          SnackBar(
+                                            content: Text(
+                                              'Failed to create mailbox: $e',
+                                            ),
+                                            backgroundColor: Colors.redAccent,
+                                            behavior: SnackBarBehavior.floating,
+                                          ),
+                                        );
+                                      }
                                     }
-                                  }
-                                },
-                          style: FilledButton.styleFrom(
-                            backgroundColor: const Color(0xFF1A73E8),
+                                  },
+                            style: FilledButton.styleFrom(
+                              backgroundColor: const Color(0xFF1A73E8),
+                            ),
+                            child: isSubmitting
+                                ? const SizedBox(
+                                    width: 18,
+                                    height: 18,
+                                    child: CircularProgressIndicator(
+                                      strokeWidth: 2,
+                                      color: Colors.white,
+                                    ),
+                                  )
+                                : const Text('Create Mailbox'),
                           ),
-                          child: isSubmitting
-                              ? const SizedBox(
-                                  width: 18,
-                                  height: 18,
-                                  child: CircularProgressIndicator(
-                                    strokeWidth: 2,
-                                    color: Colors.white,
-                                  ),
-                                )
-                              : const Text('Create Mailbox'),
-                        ),
-                      ],
-                    ),
-                  ],
+                        ],
+                      ),
+                    ],
+                  ),
                 ),
               ),
             ),
-          ),
-        );
-      },
+          );
+        },
       ),
     );
   }
 
   /// 5.5 List Sub-ID Accounts (GET /api/subid/list)
-  Future<void> _loadSubIds() async {
+  Future<void> _loadSubIds([String? accountEmail]) async {
     if (!mounted) return;
     setState(() => _isLoadingSubIds = true);
     try {
-      final list = await UserRepository.listSubIds();
+      final active = ref.read(activeAccountProvider);
+      final email = (accountEmail != null && accountEmail.isNotEmpty)
+          ? accountEmail
+          : (active.email.isNotEmpty && active.email != 'loading'
+                ? active.email
+                : null);
+      final list = await UserRepository.listSubIds(email);
       if (mounted) {
         setState(() {
           _apiSubIds = list;
@@ -1041,31 +1213,6 @@ class _ManageAccountScreenState extends ConsumerState<ManageAccountScreen> {
     } catch (e) {
       print('[MANAGE_ACCOUNT] loadSubIds error: $e');
       if (mounted) setState(() => _isLoadingSubIds = false);
-    }
-  }
-
-  /// 5.6 Parent Approval for Child Accounts (PATCH /api/users/{id}/approve)
-  Future<void> _approveChildAccount(dynamic subId) async {
-    final success = await UserRepository.approveChildAccount(subId);
-    if (mounted) {
-      if (success) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('Child account approved successfully'),
-            backgroundColor: Color(0xFF1E8E3E),
-            behavior: SnackBarBehavior.floating,
-          ),
-        );
-        await _loadSubIds();
-      } else {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('Failed to approve child account'),
-            backgroundColor: Colors.redAccent,
-            behavior: SnackBarBehavior.floating,
-          ),
-        );
-      }
     }
   }
 
@@ -1108,7 +1255,9 @@ class _ManageAccountScreenState extends ConsumerState<ManageAccountScreen> {
               ? 'data:$mime;base64,${base64Encode(fileBytes)}'
               : (filePath ?? '');
 
-          await ref.read(accountsProvider.notifier).updateAvatar(
+          await ref
+              .read(accountsProvider.notifier)
+              .updateAvatar(
                 accountId,
                 localPreviewUri,
                 bytes: fileBytes,
@@ -1174,9 +1323,7 @@ class _ManageAccountScreenState extends ConsumerState<ManageAccountScreen> {
     if (confirmed == true) {
       setState(() => _isLoading = true);
       try {
-        await ref
-            .read(accountsProvider.notifier)
-            .removeAvatar(accountId);
+        await ref.read(accountsProvider.notifier).removeAvatar(accountId);
         if (mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
             const SnackBar(
@@ -1236,10 +1383,12 @@ class _ManageAccountScreenState extends ConsumerState<ManageAccountScreen> {
     }
     final isDark = Theme.of(context).brightness == Brightness.dark;
     final screenWidth = MediaQuery.of(context).size.width;
-    final bool isMobileDevice = !kIsWeb &&
+    final bool isMobileDevice =
+        !kIsWeb &&
         (defaultTargetPlatform == TargetPlatform.android ||
             defaultTargetPlatform == TargetPlatform.iOS);
-    final isMobile = isMobileDevice ||
+    final isMobile =
+        isMobileDevice ||
         (screenWidth < 800 &&
             defaultTargetPlatform != TargetPlatform.macOS &&
             defaultTargetPlatform != TargetPlatform.windows);
@@ -1247,7 +1396,8 @@ class _ManageAccountScreenState extends ConsumerState<ManageAccountScreen> {
     final bgColor = isDark ? const Color(0xFF1E2022) : Colors.white;
 
     return PopScope(
-      canPop: !isMobile ||
+      canPop:
+          !isMobile ||
           (_homeSubPage == 0 &&
               _selectedTab == 0 &&
               Navigator.of(context).canPop()),
@@ -1310,10 +1460,10 @@ class _ManageAccountScreenState extends ConsumerState<ManageAccountScreen> {
     final displayName = account.name.isNotEmpty
         ? account.name
         : (_displayName != 'Not set' && _displayName.isNotEmpty
-            ? _displayName
-            : (account.email.isNotEmpty
-                ? account.email.split('@').first
-                : 'User'));
+              ? _displayName
+              : (account.email.isNotEmpty
+                    ? account.email.split('@').first
+                    : 'User'));
 
     return Container(
       height: 64,
@@ -1330,7 +1480,10 @@ class _ManageAccountScreenState extends ConsumerState<ManageAccountScreen> {
       child: Row(
         children: [
           // Back button
-          if (Navigator.of(context).canPop() || isMobile || _homeSubPage != 0 || _selectedTab != 0) ...[
+          if (Navigator.of(context).canPop() ||
+              isMobile ||
+              _homeSubPage != 0 ||
+              _selectedTab != 0) ...[
             IconButton(
               icon: Icon(
                 Icons.arrow_back_rounded,
@@ -1482,9 +1635,7 @@ class _ManageAccountScreenState extends ConsumerState<ManageAccountScreen> {
                 const SizedBox(height: 3),
                 // Email
                 Text(
-                  account.email.isNotEmpty
-                      ? account.email
-                      : 'Not signed in',
+                  account.email.isNotEmpty ? account.email : 'Not signed in',
                   style: TextStyle(
                     fontSize: 12.5,
                     color: isDark ? Colors.white60 : const Color(0xFF5F6368),
@@ -1513,13 +1664,18 @@ class _ManageAccountScreenState extends ConsumerState<ManageAccountScreen> {
                   },
                   borderRadius: BorderRadius.circular(8),
                   child: Padding(
-                    padding: const EdgeInsets.symmetric(vertical: 8, horizontal: 4),
+                    padding: const EdgeInsets.symmetric(
+                      vertical: 8,
+                      horizontal: 4,
+                    ),
                     child: Row(
                       children: [
                         Icon(
                           Icons.add,
                           size: 19,
-                          color: isDark ? Colors.white : const Color(0xFF202124),
+                          color: isDark
+                              ? Colors.white
+                              : const Color(0xFF202124),
                         ),
                         const SizedBox(width: 12),
                         Text(
@@ -1527,7 +1683,9 @@ class _ManageAccountScreenState extends ConsumerState<ManageAccountScreen> {
                           style: TextStyle(
                             fontSize: 13.5,
                             fontWeight: FontWeight.w600,
-                            color: isDark ? Colors.white : const Color(0xFF202124),
+                            color: isDark
+                                ? Colors.white
+                                : const Color(0xFF202124),
                           ),
                         ),
                       ],
@@ -1544,13 +1702,18 @@ class _ManageAccountScreenState extends ConsumerState<ManageAccountScreen> {
                   },
                   borderRadius: BorderRadius.circular(8),
                   child: Padding(
-                    padding: const EdgeInsets.symmetric(vertical: 8, horizontal: 4),
+                    padding: const EdgeInsets.symmetric(
+                      vertical: 8,
+                      horizontal: 4,
+                    ),
                     child: Row(
                       children: [
                         Icon(
                           Icons.logout_rounded,
                           size: 19,
-                          color: isDark ? Colors.white : const Color(0xFF202124),
+                          color: isDark
+                              ? Colors.white
+                              : const Color(0xFF202124),
                         ),
                         const SizedBox(width: 12),
                         Text(
@@ -1558,7 +1721,9 @@ class _ManageAccountScreenState extends ConsumerState<ManageAccountScreen> {
                           style: TextStyle(
                             fontSize: 13.5,
                             fontWeight: FontWeight.w600,
-                            color: isDark ? Colors.white : const Color(0xFF202124),
+                            color: isDark
+                                ? Colors.white
+                                : const Color(0xFF202124),
                           ),
                         ),
                       ],
@@ -1653,15 +1818,12 @@ class _ManageAccountScreenState extends ConsumerState<ManageAccountScreen> {
                   decoration: BoxDecoration(
                     color: isSelected
                         ? (isDark
-                            ? const Color(0xFF1A73E8).withValues(alpha: 0.15)
-                            : const Color(0xFFE8F0FE))
+                              ? const Color(0xFF1A73E8).withValues(alpha: 0.15)
+                              : const Color(0xFFE8F0FE))
                         : Colors.transparent,
                     borderRadius: BorderRadius.circular(24),
                     border: isSelected
-                        ? Border.all(
-                            color: const Color(0xFF1A73E8),
-                            width: 1.5,
-                          )
+                        ? Border.all(color: const Color(0xFF1A73E8), width: 1.5)
                         : null,
                   ),
                   padding: const EdgeInsets.symmetric(
@@ -1676,8 +1838,8 @@ class _ManageAccountScreenState extends ConsumerState<ManageAccountScreen> {
                         color: isSelected
                             ? const Color(0xFF1A73E8)
                             : (isDark
-                                ? Colors.white60
-                                : const Color(0xFF5F6368)),
+                                  ? Colors.white60
+                                  : const Color(0xFF5F6368)),
                       ),
                       const SizedBox(width: 16),
                       Expanded(
@@ -1691,8 +1853,8 @@ class _ManageAccountScreenState extends ConsumerState<ManageAccountScreen> {
                             color: isSelected
                                 ? const Color(0xFF1A73E8)
                                 : (isDark
-                                    ? Colors.white70
-                                    : const Color(0xFF3C4043)),
+                                      ? Colors.white70
+                                      : const Color(0xFF3C4043)),
                             height: 1.25,
                           ),
                         ),
@@ -1726,8 +1888,7 @@ class _ManageAccountScreenState extends ConsumerState<ManageAccountScreen> {
                     style: TextStyle(
                       fontSize: 14,
                       fontWeight: FontWeight.w400,
-                      color:
-                          isDark ? Colors.white70 : const Color(0xFF3C4043),
+                      color: isDark ? Colors.white70 : const Color(0xFF3C4043),
                     ),
                   ),
                 ],
@@ -1782,8 +1943,8 @@ class _ManageAccountScreenState extends ConsumerState<ManageAccountScreen> {
                 decoration: BoxDecoration(
                   color: isSelected
                       ? (isDark
-                          ? const Color(0xFF1A73E8).withValues(alpha: 0.2)
-                          : const Color(0xFFE8F0FE))
+                            ? const Color(0xFF1A73E8).withValues(alpha: 0.2)
+                            : const Color(0xFFE8F0FE))
                       : Colors.transparent,
                   borderRadius: BorderRadius.circular(20),
                   border: isSelected
@@ -1802,22 +1963,21 @@ class _ManageAccountScreenState extends ConsumerState<ManageAccountScreen> {
                       size: 16,
                       color: isSelected
                           ? const Color(0xFF1A73E8)
-                          : (isDark
-                              ? Colors.white60
-                              : const Color(0xFF5F6368)),
+                          : (isDark ? Colors.white60 : const Color(0xFF5F6368)),
                     ),
                     const SizedBox(width: 8),
                     Text(
                       singleLineTitle,
                       style: TextStyle(
                         fontSize: 13,
-                        fontWeight:
-                            isSelected ? FontWeight.w600 : FontWeight.w500,
+                        fontWeight: isSelected
+                            ? FontWeight.w600
+                            : FontWeight.w500,
                         color: isSelected
                             ? const Color(0xFF1A73E8)
                             : (isDark
-                                ? Colors.white70
-                                : const Color(0xFF3C4043)),
+                                  ? Colors.white70
+                                  : const Color(0xFF3C4043)),
                       ),
                     ),
                   ],
@@ -1991,31 +2151,42 @@ class _ManageAccountScreenState extends ConsumerState<ManageAccountScreen> {
       title: 'Account storage',
       subtitle:
           'Your account storage is shared across BNX services, like Bnx mail and Drive',
-      middleWidget: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          ClipRRect(
-            borderRadius: BorderRadius.circular(4),
-            child: LinearProgressIndicator(
-              value: 0.05,
-              minHeight: 4,
-              backgroundColor: isDark
-                  ? const Color(0xFF3C4043)
-                  : const Color(0xFFE8EAED),
-              valueColor: const AlwaysStoppedAnimation<Color>(
-                Color(0xFF1A73E8),
+      middleWidget: Builder(
+        builder: (ctx) {
+          final quota = _storageQuota;
+          final fraction = quota != null ? quota.fraction : 0.0;
+          final usedText = quota != null
+              ? '${quota.usedFormatted} of ${quota.limitFormatted} used'
+              : (_isLoadingStorageQuota
+                    ? 'Loading storage...'
+                    : '0 B of 5 GB used');
+          return Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              ClipRRect(
+                borderRadius: BorderRadius.circular(4),
+                child: LinearProgressIndicator(
+                  value: fraction,
+                  minHeight: 4,
+                  backgroundColor: isDark
+                      ? const Color(0xFF3C4043)
+                      : const Color(0xFFE8EAED),
+                  valueColor: const AlwaysStoppedAnimation<Color>(
+                    Color(0xFF1A73E8),
+                  ),
+                ),
               ),
-            ),
-          ),
-          const SizedBox(height: 8),
-          Text(
-            '8.88 MB of 5 GB used',
-            style: TextStyle(
-              fontSize: 12,
-              color: isDark ? Colors.white60 : const Color(0xFF5F6368),
-            ),
-          ),
-        ],
+              const SizedBox(height: 8),
+              Text(
+                usedText,
+                style: TextStyle(
+                  fontSize: 12,
+                  color: isDark ? Colors.white60 : const Color(0xFF5F6368),
+                ),
+              ),
+            ],
+          );
+        },
       ),
       actionLabel: 'Manage storage',
       onAction: _navigateToStoragePage,
@@ -2041,21 +2212,13 @@ class _ManageAccountScreenState extends ConsumerState<ManageAccountScreen> {
             children: [
               Expanded(
                 child: Column(
-                  children: [
-                    card1,
-                    const SizedBox(height: 24),
-                    card3,
-                  ],
+                  children: [card1, const SizedBox(height: 24), card3],
                 ),
               ),
               const SizedBox(width: 24),
               Expanded(
                 child: Column(
-                  children: [
-                    card2,
-                    const SizedBox(height: 24),
-                    card4,
-                  ],
+                  children: [card2, const SizedBox(height: 24), card4],
                 ),
               ),
             ],
@@ -2078,10 +2241,10 @@ class _ManageAccountScreenState extends ConsumerState<ManageAccountScreen> {
     final firstName = account.name.isNotEmpty
         ? account.name.split(' ').first
         : (_displayName != 'Not set' && _displayName.isNotEmpty
-            ? _displayName.split(' ').first
-            : (account.email.isNotEmpty
-                ? account.email.split('@').first
-                : 'User'));
+              ? _displayName.split(' ').first
+              : (account.email.isNotEmpty
+                    ? account.email.split('@').first
+                    : 'User'));
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.center,
@@ -2140,10 +2303,10 @@ class _ManageAccountScreenState extends ConsumerState<ManageAccountScreen> {
           name: account.name.isNotEmpty
               ? account.name
               : (_displayName != 'Not set' && _displayName.isNotEmpty
-                  ? _displayName
-                  : (account.email.isNotEmpty
-                      ? account.email.split('@').first
-                      : 'User')),
+                    ? _displayName
+                    : (account.email.isNotEmpty
+                          ? account.email.split('@').first
+                          : 'User')),
           avatarUrl: account.avatarUrl,
           size: 84,
           fontSize: 34,
@@ -2220,7 +2383,9 @@ class _ManageAccountScreenState extends ConsumerState<ManageAccountScreen> {
                         style: TextStyle(
                           fontSize: 20,
                           fontWeight: FontWeight.w600,
-                          color: isDark ? Colors.white : const Color(0xFF202124),
+                          color: isDark
+                              ? Colors.white
+                              : const Color(0xFF202124),
                           letterSpacing: -0.2,
                         ),
                       ),
@@ -2229,7 +2394,9 @@ class _ManageAccountScreenState extends ConsumerState<ManageAccountScreen> {
                         'Your primary email is used for account-related notifications and as your default identity.',
                         style: TextStyle(
                           fontSize: 13.5,
-                          color: isDark ? Colors.white60 : const Color(0xFF5F6368),
+                          color: isDark
+                              ? Colors.white60
+                              : const Color(0xFF5F6368),
                         ),
                       ),
                       const SizedBox(height: 12),
@@ -2238,12 +2405,18 @@ class _ManageAccountScreenState extends ConsumerState<ManageAccountScreen> {
                         icon: const Icon(Icons.add, size: 16),
                         label: const Text(
                           'Add Mailbox',
-                          style: TextStyle(fontSize: 12.5, fontWeight: FontWeight.w600),
+                          style: TextStyle(
+                            fontSize: 12.5,
+                            fontWeight: FontWeight.w600,
+                          ),
                         ),
                         style: FilledButton.styleFrom(
                           backgroundColor: const Color(0xFF1A73E8),
                           foregroundColor: Colors.white,
-                          padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 14,
+                            vertical: 10,
+                          ),
                           shape: RoundedRectangleBorder(
                             borderRadius: BorderRadius.circular(20),
                           ),
@@ -2265,7 +2438,9 @@ class _ManageAccountScreenState extends ConsumerState<ManageAccountScreen> {
                               style: TextStyle(
                                 fontSize: 20,
                                 fontWeight: FontWeight.w600,
-                                color: isDark ? Colors.white : const Color(0xFF202124),
+                                color: isDark
+                                    ? Colors.white
+                                    : const Color(0xFF202124),
                                 letterSpacing: -0.2,
                               ),
                             ),
@@ -2274,7 +2449,9 @@ class _ManageAccountScreenState extends ConsumerState<ManageAccountScreen> {
                               'Your primary email is used for account-related notifications and as your default identity.',
                               style: TextStyle(
                                 fontSize: 13.5,
-                                color: isDark ? Colors.white60 : const Color(0xFF5F6368),
+                                color: isDark
+                                    ? Colors.white60
+                                    : const Color(0xFF5F6368),
                               ),
                             ),
                           ],
@@ -2286,12 +2463,18 @@ class _ManageAccountScreenState extends ConsumerState<ManageAccountScreen> {
                         icon: const Icon(Icons.add, size: 16),
                         label: const Text(
                           'Add Mailbox',
-                          style: TextStyle(fontSize: 12.5, fontWeight: FontWeight.w600),
+                          style: TextStyle(
+                            fontSize: 12.5,
+                            fontWeight: FontWeight.w600,
+                          ),
                         ),
                         style: FilledButton.styleFrom(
                           backgroundColor: const Color(0xFF1A73E8),
                           foregroundColor: Colors.white,
-                          padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 14,
+                            vertical: 10,
+                          ),
                           shape: RoundedRectangleBorder(
                             borderRadius: BorderRadius.circular(20),
                           ),
@@ -2317,7 +2500,8 @@ class _ManageAccountScreenState extends ConsumerState<ManageAccountScreen> {
                 if (_connectedEmails.isNotEmpty) ...[
                   ..._connectedEmails.map((item) {
                     final isPrimary = item['isPrimary'] == true;
-                    final emailStr = item['email']?.toString() ??
+                    final emailStr =
+                        item['email']?.toString() ??
                         item['emailName']?.toString() ??
                         fallbackEmail;
                     final emailId = item['id'];
@@ -2329,33 +2513,47 @@ class _ManageAccountScreenState extends ConsumerState<ManageAccountScreen> {
                         decoration: BoxDecoration(
                           color: isPrimary
                               ? (isDark
-                                  ? const Color(0xFF1B2A4A)
-                                  : const Color(0xFFE8F2FD))
+                                    ? const Color(0xFF1B2A4A)
+                                    : const Color(0xFFE8F2FD))
                               : (isDark
-                                  ? const Color(0xFF1E2124)
-                                  : const Color(0xFFF8F9FA)),
+                                    ? const Color(0xFF1E2124)
+                                    : const Color(0xFFF8F9FA)),
                           borderRadius: BorderRadius.circular(12),
                           border: Border(
                             left: BorderSide(
                               color: isPrimary
                                   ? const Color(0xFF1A73E8)
-                                  : (isDark ? const Color(0xFF3C4043) : const Color(0xFFDADCE0)),
+                                  : (isDark
+                                        ? const Color(0xFF3C4043)
+                                        : const Color(0xFFDADCE0)),
                               width: isPrimary ? 4 : 1,
                             ),
                             top: BorderSide(
                               color: isPrimary
-                                  ? (isDark ? const Color(0xFF2A3B5C) : const Color(0xFFD3E3FD))
-                                  : (isDark ? const Color(0xFF3C4043) : const Color(0xFFDADCE0)),
+                                  ? (isDark
+                                        ? const Color(0xFF2A3B5C)
+                                        : const Color(0xFFD3E3FD))
+                                  : (isDark
+                                        ? const Color(0xFF3C4043)
+                                        : const Color(0xFFDADCE0)),
                             ),
                             right: BorderSide(
                               color: isPrimary
-                                  ? (isDark ? const Color(0xFF2A3B5C) : const Color(0xFFD3E3FD))
-                                  : (isDark ? const Color(0xFF3C4043) : const Color(0xFFDADCE0)),
+                                  ? (isDark
+                                        ? const Color(0xFF2A3B5C)
+                                        : const Color(0xFFD3E3FD))
+                                  : (isDark
+                                        ? const Color(0xFF3C4043)
+                                        : const Color(0xFFDADCE0)),
                             ),
                             bottom: BorderSide(
                               color: isPrimary
-                                  ? (isDark ? const Color(0xFF2A3B5C) : const Color(0xFFD3E3FD))
-                                  : (isDark ? const Color(0xFF3C4043) : const Color(0xFFDADCE0)),
+                                  ? (isDark
+                                        ? const Color(0xFF2A3B5C)
+                                        : const Color(0xFFD3E3FD))
+                                  : (isDark
+                                        ? const Color(0xFF3C4043)
+                                        : const Color(0xFFDADCE0)),
                             ),
                           ),
                         ),
@@ -2369,7 +2567,9 @@ class _ManageAccountScreenState extends ConsumerState<ManageAccountScreen> {
                               width: 40,
                               height: 40,
                               decoration: BoxDecoration(
-                                color: isDark ? const Color(0xFF24272B) : Colors.white,
+                                color: isDark
+                                    ? const Color(0xFF24272B)
+                                    : Colors.white,
                                 borderRadius: BorderRadius.circular(8),
                                 border: Border.all(
                                   color: isDark
@@ -2404,7 +2604,9 @@ class _ManageAccountScreenState extends ConsumerState<ManageAccountScreen> {
                                   ),
                                   const SizedBox(height: 3),
                                   Text(
-                                    isPrimary ? 'Primary email' : 'Connected mailbox / alias',
+                                    isPrimary
+                                        ? 'Primary email'
+                                        : 'Connected mailbox / alias',
                                     style: TextStyle(
                                       fontSize: 12.5,
                                       color: isDark
@@ -2441,22 +2643,39 @@ class _ManageAccountScreenState extends ConsumerState<ManageAccountScreen> {
                                 runSpacing: 6,
                                 crossAxisAlignment: WrapCrossAlignment.center,
                                 children: [
-                                  if (item['isVerified'] == false || item['verified'] == false)
+                                  if (item['isVerified'] == false ||
+                                      item['verified'] == false)
                                     OutlinedButton(
-                                      onPressed: emailId != null && !_isVerifyingEmail
-                                          ? () => _initiateEmailVerification(emailId, emailStr)
+                                      onPressed:
+                                          emailId != null && !_isVerifyingEmail
+                                          ? () => _initiateEmailVerification(
+                                              emailId,
+                                              emailStr,
+                                            )
                                           : null,
                                       style: OutlinedButton.styleFrom(
-                                        foregroundColor: const Color(0xFFE37400),
-                                        side: const BorderSide(color: Color(0xFFE37400)),
-                                        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                                        foregroundColor: const Color(
+                                          0xFFE37400,
+                                        ),
+                                        side: const BorderSide(
+                                          color: Color(0xFFE37400),
+                                        ),
+                                        padding: const EdgeInsets.symmetric(
+                                          horizontal: 10,
+                                          vertical: 6,
+                                        ),
                                         shape: RoundedRectangleBorder(
-                                          borderRadius: BorderRadius.circular(16),
+                                          borderRadius: BorderRadius.circular(
+                                            16,
+                                          ),
                                         ),
                                       ),
                                       child: const Text(
                                         'Verify',
-                                        style: TextStyle(fontSize: 11.5, fontWeight: FontWeight.w600),
+                                        style: TextStyle(
+                                          fontSize: 11.5,
+                                          fontWeight: FontWeight.w600,
+                                        ),
                                       ),
                                     ),
                                   OutlinedButton(
@@ -2465,15 +2684,23 @@ class _ManageAccountScreenState extends ConsumerState<ManageAccountScreen> {
                                         : null,
                                     style: OutlinedButton.styleFrom(
                                       foregroundColor: const Color(0xFF1A73E8),
-                                      side: const BorderSide(color: Color(0xFF1A73E8)),
-                                      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                                      side: const BorderSide(
+                                        color: Color(0xFF1A73E8),
+                                      ),
+                                      padding: const EdgeInsets.symmetric(
+                                        horizontal: 12,
+                                        vertical: 6,
+                                      ),
                                       shape: RoundedRectangleBorder(
                                         borderRadius: BorderRadius.circular(16),
                                       ),
                                     ),
                                     child: const Text(
                                       'Set as Primary',
-                                      style: TextStyle(fontSize: 11.5, fontWeight: FontWeight.w600),
+                                      style: TextStyle(
+                                        fontSize: 11.5,
+                                        fontWeight: FontWeight.w600,
+                                      ),
                                     ),
                                   ),
                                 ],
@@ -2524,7 +2751,9 @@ class _ManageAccountScreenState extends ConsumerState<ManageAccountScreen> {
                           width: 40,
                           height: 40,
                           decoration: BoxDecoration(
-                            color: isDark ? const Color(0xFF24272B) : Colors.white,
+                            color: isDark
+                                ? const Color(0xFF24272B)
+                                : Colors.white,
                             borderRadius: BorderRadius.circular(8),
                             border: Border.all(
                               color: isDark
@@ -2914,7 +3143,12 @@ class _ManageAccountScreenState extends ConsumerState<ManageAccountScreen> {
                       // Row 1: 2-Step Verification
                       InkWell(
                         onTap: () {
-                          final is2Fa = ref.read(settingsProvider).settings?.twoFactorEnabled ?? false;
+                          final is2Fa =
+                              ref
+                                  .read(settingsProvider)
+                                  .settings
+                                  ?.twoFactorEnabled ??
+                              false;
                           _open2FAManagement(isDark, is2Fa);
                         },
                         borderRadius: const BorderRadius.vertical(
@@ -2941,7 +3175,12 @@ class _ManageAccountScreenState extends ConsumerState<ManageAccountScreen> {
                                   children: [
                                     Builder(
                                       builder: (context) {
-                                        final is2Fa = ref.watch(settingsProvider).settings?.twoFactorEnabled ?? false;
+                                        final is2Fa =
+                                            ref
+                                                .watch(settingsProvider)
+                                                .settings
+                                                ?.twoFactorEnabled ??
+                                            false;
                                         return Row(
                                           children: [
                                             Text(
@@ -2956,15 +3195,23 @@ class _ManageAccountScreenState extends ConsumerState<ManageAccountScreen> {
                                             ),
                                             const SizedBox(width: 8),
                                             Container(
-                                              padding: const EdgeInsets.symmetric(
-                                                horizontal: 8,
-                                                vertical: 2,
-                                              ),
+                                              padding:
+                                                  const EdgeInsets.symmetric(
+                                                    horizontal: 8,
+                                                    vertical: 2,
+                                                  ),
                                               decoration: BoxDecoration(
                                                 color: is2Fa
                                                     ? const Color(0xFFE6F4EA)
-                                                    : (isDark ? const Color(0xFF3C4043) : const Color(0xFFF1F3F4)),
-                                                borderRadius: BorderRadius.circular(6),
+                                                    : (isDark
+                                                          ? const Color(
+                                                              0xFF3C4043,
+                                                            )
+                                                          : const Color(
+                                                              0xFFF1F3F4,
+                                                            )),
+                                                borderRadius:
+                                                    BorderRadius.circular(6),
                                               ),
                                               child: Text(
                                                 is2Fa ? 'On' : 'Off',
@@ -2973,7 +3220,11 @@ class _ManageAccountScreenState extends ConsumerState<ManageAccountScreen> {
                                                   fontWeight: FontWeight.w600,
                                                   color: is2Fa
                                                       ? const Color(0xFF137333)
-                                                      : (isDark ? Colors.white70 : const Color(0xFF5F6368)),
+                                                      : (isDark
+                                                            ? Colors.white70
+                                                            : const Color(
+                                                                0xFF5F6368,
+                                                              )),
                                                 ),
                                               ),
                                             ),
@@ -2984,7 +3235,12 @@ class _ManageAccountScreenState extends ConsumerState<ManageAccountScreen> {
                                     const SizedBox(height: 3),
                                     Builder(
                                       builder: (context) {
-                                        final is2Fa = ref.watch(settingsProvider).settings?.twoFactorEnabled ?? false;
+                                        final is2Fa =
+                                            ref
+                                                .watch(settingsProvider)
+                                                .settings
+                                                ?.twoFactorEnabled ??
+                                            false;
                                         return Text(
                                           is2Fa
                                               ? 'Your account is protected with 2-step verification.'
@@ -3006,12 +3262,19 @@ class _ManageAccountScreenState extends ConsumerState<ManageAccountScreen> {
                                 const SizedBox(
                                   width: 18,
                                   height: 18,
-                                  child: CircularProgressIndicator(strokeWidth: 2),
+                                  child: CircularProgressIndicator(
+                                    strokeWidth: 2,
+                                  ),
                                 )
                               else
                                 Builder(
                                   builder: (context) {
-                                    final is2Fa = ref.watch(settingsProvider).settings?.twoFactorEnabled ?? false;
+                                    final is2Fa =
+                                        ref
+                                            .watch(settingsProvider)
+                                            .settings
+                                            ?.twoFactorEnabled ??
+                                        false;
                                     return Container(
                                       padding: const EdgeInsets.symmetric(
                                         horizontal: 16,
@@ -3182,7 +3445,9 @@ class _ManageAccountScreenState extends ConsumerState<ManageAccountScreen> {
                 // Divider
                 Divider(
                   height: 1,
-                  color: isDark ? const Color(0xFF3C4043) : const Color(0xFFE8EAED),
+                  color: isDark
+                      ? const Color(0xFF3C4043)
+                      : const Color(0xFFE8EAED),
                 ),
                 const SizedBox(height: 16),
 
@@ -3214,35 +3479,44 @@ class _ManageAccountScreenState extends ConsumerState<ManageAccountScreen> {
     final firstName = account.name.isNotEmpty
         ? account.name.split(' ').first
         : (_displayName != 'Not set' && _displayName.isNotEmpty
-            ? _displayName.split(' ').first
-            : (account.email.isNotEmpty
-                ? account.email.split('@').first
-                : 'User'));
+              ? _displayName.split(' ').first
+              : (account.email.isNotEmpty
+                    ? account.email.split('@').first
+                    : 'User'));
 
     final displayName = account.name.isNotEmpty
         ? account.name
         : (_displayName != 'Not set' && _displayName.isNotEmpty
-            ? _displayName
-            : (account.email.isNotEmpty
-                ? account.email.split('@').first
-                : 'User'));
+              ? _displayName
+              : (account.email.isNotEmpty
+                    ? account.email.split('@').first
+                    : 'User'));
 
-    final dobText = account.dob != null
-        ? '${account.dob!.day}/${account.dob!.month}/${account.dob!.year}'
-        : 'Not set';
+    final dobText = _dob != null
+        ? '${_dob!.day}/${_dob!.month}/${_dob!.year}'
+        : (account.dob != null
+              ? '${account.dob!.day}/${account.dob!.month}/${account.dob!.year}'
+              : 'Not set');
 
     final primaryEmail = account.email.isNotEmpty
         ? account.email
         : 'Not signed in';
 
-    final recoveryEmail = (account.recoveryEmail != null &&
-            account.recoveryEmail!.isNotEmpty)
-        ? account.recoveryEmail!
-        : 'None added';
+    final recoveryEmail =
+        (_recoveryEmail != null &&
+            _recoveryEmail!.isNotEmpty &&
+            _recoveryEmail != 'None added')
+        ? _recoveryEmail!
+        : ((account.recoveryEmail != null && account.recoveryEmail!.isNotEmpty)
+              ? account.recoveryEmail!
+              : 'None added');
 
-    final phone = (account.phone != null && account.phone!.isNotEmpty)
-        ? account.phone!
-        : 'None added';
+    final phone =
+        (_phone != null && _phone!.isNotEmpty && _phone != 'None added')
+        ? _phone!
+        : ((account.phone != null && account.phone!.isNotEmpty)
+              ? account.phone!
+              : 'None added');
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -3572,9 +3846,7 @@ class _ManageAccountScreenState extends ConsumerState<ManageAccountScreen> {
                             onPressed: _isLoading ? null : _removePhoto,
                             style: OutlinedButton.styleFrom(
                               foregroundColor: const Color(0xFFD93025),
-                              side: const BorderSide(
-                                color: Color(0xFFF28B82),
-                              ),
+                              side: const BorderSide(color: Color(0xFFF28B82)),
                               padding: const EdgeInsets.symmetric(
                                 horizontal: 14,
                                 vertical: 10,
@@ -3659,11 +3931,13 @@ class _ManageAccountScreenState extends ConsumerState<ManageAccountScreen> {
     bool isDark,
     bool isMobile,
   ) {
-    final firstName =
-        account.name.isNotEmpty ? account.name.split(' ').first : 'User';
+    final firstName = account.name.isNotEmpty
+        ? account.name.split(' ').first
+        : 'User';
     final billedEmail = account.email;
 
-    final planName = _subscriptionData?['plan_name']?.toString() ??
+    final planName =
+        _subscriptionData?['plan_name']?.toString() ??
         (_isLoadingSubscription ? 'Loading plan...' : 'Free Plan');
     final rawDays = _subscriptionData?['subscription_days_remaining'];
     final int? daysRemaining = (rawDays is num) ? rawDays.toInt() : null;
@@ -3674,7 +3948,8 @@ class _ManageAccountScreenState extends ConsumerState<ManageAccountScreen> {
     if (rawSubDate != null) {
       final parsed = DateTime.tryParse(rawSubDate.toString());
       if (parsed != null) {
-        subscribedDate = '${parsed.day.toString().padLeft(2, '0')}/${parsed.month.toString().padLeft(2, '0')}/${parsed.year}';
+        subscribedDate =
+            '${parsed.day.toString().padLeft(2, '0')}/${parsed.month.toString().padLeft(2, '0')}/${parsed.year}';
       } else {
         subscribedDate = rawSubDate.toString();
       }
@@ -3685,7 +3960,8 @@ class _ManageAccountScreenState extends ConsumerState<ManageAccountScreen> {
     if (rawDueDate != null) {
       final parsed = DateTime.tryParse(rawDueDate.toString());
       if (parsed != null) {
-        nextDueDate = '${parsed.day.toString().padLeft(2, '0')}/${parsed.month.toString().padLeft(2, '0')}/${parsed.year}';
+        nextDueDate =
+            '${parsed.day.toString().padLeft(2, '0')}/${parsed.month.toString().padLeft(2, '0')}/${parsed.year}';
       } else {
         nextDueDate = rawDueDate.toString();
       }
@@ -3826,18 +4102,18 @@ class _ManageAccountScreenState extends ConsumerState<ManageAccountScreen> {
                             decoration: BoxDecoration(
                               color: isActive
                                   ? (isDark
-                                      ? const Color(0xFF133E24)
-                                      : Colors.white)
+                                        ? const Color(0xFF133E24)
+                                        : Colors.white)
                                   : (isDark
-                                      ? const Color(0xFF3C4043)
-                                      : const Color(0xFFF1F3F4)),
+                                        ? const Color(0xFF3C4043)
+                                        : const Color(0xFFF1F3F4)),
                               borderRadius: BorderRadius.circular(20),
                               border: Border.all(
                                 color: isActive
                                     ? const Color(0xFF1E8E3E)
                                     : (isDark
-                                        ? const Color(0xFF5F6368)
-                                        : const Color(0xFFDADCE0)),
+                                          ? const Color(0xFF5F6368)
+                                          : const Color(0xFFDADCE0)),
                               ),
                             ),
                             child: Row(
@@ -3850,23 +4126,25 @@ class _ManageAccountScreenState extends ConsumerState<ManageAccountScreen> {
                                   color: isActive
                                       ? const Color(0xFF1E8E3E)
                                       : (isDark
-                                          ? Colors.white70
-                                          : const Color(0xFF5F6368)),
+                                            ? Colors.white70
+                                            : const Color(0xFF5F6368)),
                                   size: 16,
                                 ),
                                 const SizedBox(width: 6),
                                 Text(
                                   isActive
                                       ? 'Active'
-                                      : (daysRemaining == 0 ? 'Expired' : 'Free'),
+                                      : (daysRemaining == 0
+                                            ? 'Expired'
+                                            : 'Free'),
                                   style: TextStyle(
                                     fontSize: 12.5,
                                     fontWeight: FontWeight.w600,
                                     color: isActive
                                         ? const Color(0xFF1E8E3E)
                                         : (isDark
-                                            ? Colors.white70
-                                            : const Color(0xFF5F6368)),
+                                              ? Colors.white70
+                                              : const Color(0xFF5F6368)),
                                   ),
                                 ),
                               ],
@@ -4001,7 +4279,9 @@ class _ManageAccountScreenState extends ConsumerState<ManageAccountScreen> {
                         onPressed: () {
                           ScaffoldMessenger.of(context).showSnackBar(
                             const SnackBar(
-                              content: Text('Redirecting to Cliks Business billing portal...'),
+                              content: Text(
+                                'Redirecting to Cliks Business billing portal...',
+                              ),
                               behavior: SnackBarBehavior.floating,
                             ),
                           );
@@ -4091,8 +4371,9 @@ class _ManageAccountScreenState extends ConsumerState<ManageAccountScreen> {
     bool isDark,
     bool isMobile,
   ) {
-    final firstName =
-        account.name.isNotEmpty ? account.name.split(' ').first : 'User';
+    final firstName = account.name.isNotEmpty
+        ? account.name.split(' ').first
+        : 'User';
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.center,
@@ -4158,7 +4439,10 @@ class _ManageAccountScreenState extends ConsumerState<ManageAccountScreen> {
                 style: FilledButton.styleFrom(
                   backgroundColor: const Color(0xFF1A73E8),
                   foregroundColor: Colors.white,
-                  padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 12),
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 18,
+                    vertical: 12,
+                  ),
                   shape: RoundedRectangleBorder(
                     borderRadius: BorderRadius.circular(24),
                   ),
@@ -4202,7 +4486,10 @@ class _ManageAccountScreenState extends ConsumerState<ManageAccountScreen> {
                 style: FilledButton.styleFrom(
                   backgroundColor: const Color(0xFF1A73E8),
                   foregroundColor: Colors.white,
-                  padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 12),
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 18,
+                    vertical: 12,
+                  ),
                   shape: RoundedRectangleBorder(
                     borderRadius: BorderRadius.circular(24),
                   ),
@@ -4225,277 +4512,243 @@ class _ManageAccountScreenState extends ConsumerState<ManageAccountScreen> {
           clipBehavior: Clip.antiAlias,
           child: () {
             final tableContent = Column(
-            children: [
-              // Header
-              Container(
-                padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 14),
-                decoration: BoxDecoration(
-                  color: isDark
-                      ? const Color(0xFF1E2124)
-                      : const Color(0xFFF8F9FA),
-                  borderRadius: const BorderRadius.vertical(top: Radius.circular(12)),
-                  border: Border(
-                    bottom: BorderSide(
-                      color: isDark
-                          ? const Color(0xFF3C4043)
-                          : const Color(0xFFE8EAED),
+              children: [
+                // Header
+                Container(
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 20,
+                    vertical: 14,
+                  ),
+                  decoration: BoxDecoration(
+                    color: isDark
+                        ? const Color(0xFF1E2124)
+                        : const Color(0xFFF8F9FA),
+                    borderRadius: const BorderRadius.vertical(
+                      top: Radius.circular(12),
+                    ),
+                    border: Border(
+                      bottom: BorderSide(
+                        color: isDark
+                            ? const Color(0xFF3C4043)
+                            : const Color(0xFFE8EAED),
+                      ),
                     ),
                   ),
-                ),
-                child: Row(
-                  children: [
-                    Expanded(
-                      flex: 4,
-                      child: Text(
-                        'Username',
-                        style: TextStyle(
-                          fontSize: 13,
-                          fontWeight: FontWeight.w600,
-                          color: isDark ? Colors.white70 : const Color(0xFF5F6368),
+                  child: Row(
+                    children: [
+                      Expanded(
+                        flex: 5,
+                        child: Text(
+                          'Username',
+                          style: TextStyle(
+                            fontSize: 13,
+                            fontWeight: FontWeight.w600,
+                            color: isDark
+                                ? Colors.white70
+                                : const Color(0xFF5F6368),
+                          ),
                         ),
                       ),
-                    ),
-                    Expanded(
-                      flex: 3,
-                      child: Text(
-                        'Name',
-                        style: TextStyle(
-                          fontSize: 13,
-                          fontWeight: FontWeight.w600,
-                          color: isDark ? Colors.white70 : const Color(0xFF5F6368),
+                      Expanded(
+                        flex: 4,
+                        child: Text(
+                          'Name',
+                          style: TextStyle(
+                            fontSize: 13,
+                            fontWeight: FontWeight.w600,
+                            color: isDark
+                                ? Colors.white70
+                                : const Color(0xFF5F6368),
+                          ),
                         ),
                       ),
-                    ),
-                    Expanded(
-                      flex: 2,
-                      child: Text(
-                        'Type',
-                        style: TextStyle(
-                          fontSize: 13,
-                          fontWeight: FontWeight.w600,
-                          color: isDark ? Colors.white70 : const Color(0xFF5F6368),
+                      Expanded(
+                        flex: 2,
+                        child: Text(
+                          'Type',
+                          style: TextStyle(
+                            fontSize: 13,
+                            fontWeight: FontWeight.w600,
+                            color: isDark
+                                ? Colors.white70
+                                : const Color(0xFF5F6368),
+                          ),
                         ),
                       ),
-                    ),
-                    Expanded(
-                      flex: 2,
-                      child: Text(
-                        'Status',
-                        style: TextStyle(
-                          fontSize: 13,
-                          fontWeight: FontWeight.w600,
-                          color: isDark ? Colors.white70 : const Color(0xFF5F6368),
-                        ),
-                      ),
-                    ),
-                    const SizedBox(
-                      width: 50,
-                      child: Text(
-                        'Actions',
-                        textAlign: TextAlign.center,
-                        style: TextStyle(
-                          fontSize: 13,
-                          fontWeight: FontWeight.w600,
-                          color: Color(0xFF5F6368),
-                        ),
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-
-              if (_isLoadingSubIds)
-                const Padding(
-                  padding: EdgeInsets.all(28),
-                  child: Center(
-                    child: SizedBox(
-                      width: 24,
-                      height: 24,
-                      child: CircularProgressIndicator(strokeWidth: 2),
-                    ),
-                  ),
-                ),
-
-              // Rows
-              if (!_isLoadingSubIds && _apiSubIds.isEmpty && _subIds.isEmpty)
-                Padding(
-                  padding: const EdgeInsets.all(32),
-                  child: Text(
-                    'No sub-IDs created yet.',
-                    style: TextStyle(
-                      color: isDark ? Colors.white60 : const Color(0xFF5F6368),
-                    ),
-                  ),
-                )
-              else if (!_isLoadingSubIds)
-                ...() {
-                  final activeList = _apiSubIds.isNotEmpty
-                      ? _apiSubIds
-                      : _subIds.map((e) => Map<String, dynamic>.from(e)).toList();
-
-                  return List.generate(activeList.length, (index) {
-                    final item = activeList[index];
-                    final isLast = index == activeList.length - 1;
-                    final username = item['username']?.toString() ??
-                        item['email']?.toString() ??
-                        '';
-                    final name = item['name']?.toString() ??
-                        ('${item['firstName'] ?? ''} ${item['lastName'] ?? ''}')
-                            .trim();
-                    final type = item['accountType']?.toString() ??
-                        item['type']?.toString() ??
-                        'MANAGED';
-                    final isApproved = item['approved'] == true;
-                    final subId = item['id'];
-
-                    return Container(
-                      padding: const EdgeInsets.symmetric(
-                          horizontal: 20, vertical: 14),
-                      decoration: BoxDecoration(
-                        border: isLast
-                            ? null
-                            : Border(
-                                bottom: BorderSide(
-                                  color: isDark
-                                      ? const Color(0xFF3C4043)
-                                      : const Color(0xFFE8EAED),
-                                ),
-                              ),
-                      ),
-                      child: Row(
-                        children: [
-                          Expanded(
-                            flex: 4,
-                            child: Text(
-                              username,
-                              style: TextStyle(
-                                fontSize: 14,
-                                fontWeight: FontWeight.w500,
-                                color: isDark
-                                    ? Colors.white
-                                    : const Color(0xFF202124),
-                              ),
-                              overflow: TextOverflow.ellipsis,
+                      SizedBox(
+                        width: 50,
+                        child: Align(
+                          alignment: Alignment.centerRight,
+                          child: Text(
+                            'Actions',
+                            textAlign: TextAlign.right,
+                            style: TextStyle(
+                              fontSize: 13,
+                              fontWeight: FontWeight.w600,
+                              color: isDark
+                                  ? Colors.white70
+                                  : const Color(0xFF5F6368),
                             ),
                           ),
-                          Expanded(
-                            flex: 3,
-                            child: Text(
-                              name.isNotEmpty ? name : 'Sub-Account',
-                              style: TextStyle(
-                                fontSize: 14,
-                                color: isDark
-                                    ? Colors.white70
-                                    : const Color(0xFF202124),
-                              ),
-                              overflow: TextOverflow.ellipsis,
-                            ),
-                          ),
-                          Expanded(
-                            flex: 2,
-                            child: Align(
-                              alignment: Alignment.centerLeft,
-                              child: Container(
-                                padding: const EdgeInsets.symmetric(
-                                  horizontal: 8,
-                                  vertical: 3,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+
+                if (_isLoadingSubIds)
+                  const Padding(
+                    padding: EdgeInsets.all(28),
+                    child: Center(
+                      child: SizedBox(
+                        width: 24,
+                        height: 24,
+                        child: CircularProgressIndicator(strokeWidth: 2),
+                      ),
+                    ),
+                  ),
+
+                // Rows
+                if (!_isLoadingSubIds && _apiSubIds.isEmpty && _subIds.isEmpty)
+                  Padding(
+                    padding: const EdgeInsets.all(32),
+                    child: Text(
+                      'No sub-IDs created yet.',
+                      style: TextStyle(
+                        color: isDark
+                            ? Colors.white60
+                            : const Color(0xFF5F6368),
+                      ),
+                    ),
+                  )
+                else if (!_isLoadingSubIds)
+                  ...() {
+                    final activeList = _apiSubIds.isNotEmpty
+                        ? _apiSubIds
+                        : _subIds
+                              .map((e) => Map<String, dynamic>.from(e))
+                              .toList();
+
+                    return List.generate(activeList.length, (index) {
+                      final item = activeList[index];
+                      final isLast = index == activeList.length - 1;
+                      final username =
+                          item['username']?.toString() ??
+                          item['email']?.toString() ??
+                          '';
+                      final name =
+                          item['name']?.toString() ??
+                          ('${item['firstName'] ?? ''} ${item['lastName'] ?? ''}')
+                              .trim();
+                      final type =
+                          item['accountType']?.toString() ??
+                          item['type']?.toString() ??
+                          'MANAGED';
+
+                      return Container(
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 20,
+                          vertical: 14,
+                        ),
+                        decoration: BoxDecoration(
+                          border: isLast
+                              ? null
+                              : Border(
+                                  bottom: BorderSide(
+                                    color: isDark
+                                        ? const Color(0xFF3C4043)
+                                        : const Color(0xFFE8EAED),
+                                  ),
                                 ),
-                                decoration: BoxDecoration(
+                        ),
+                        child: Row(
+                          children: [
+                            Expanded(
+                              flex: 5,
+                              child: Text(
+                                username,
+                                style: TextStyle(
+                                  fontSize: 14,
+                                  fontWeight: FontWeight.w500,
                                   color: isDark
-                                      ? const Color(0xFF1A2A4A)
-                                      : const Color(0xFFE8F0FE),
-                                  borderRadius: BorderRadius.circular(6),
+                                      ? Colors.white
+                                      : const Color(0xFF202124),
                                 ),
-                                child: Text(
-                                  type,
-                                  style: const TextStyle(
-                                    fontSize: 11,
-                                    fontWeight: FontWeight.w700,
-                                    color: Color(0xFF1A73E8),
+                                overflow: TextOverflow.ellipsis,
+                              ),
+                            ),
+                            Expanded(
+                              flex: 4,
+                              child: Text(
+                                name.isNotEmpty ? name : 'Sub-Account',
+                                style: TextStyle(
+                                  fontSize: 14,
+                                  color: isDark
+                                      ? Colors.white70
+                                      : const Color(0xFF202124),
+                                ),
+                                overflow: TextOverflow.ellipsis,
+                              ),
+                            ),
+                            Expanded(
+                              flex: 2,
+                              child: Align(
+                                alignment: Alignment.centerLeft,
+                                child: Container(
+                                  padding: const EdgeInsets.symmetric(
+                                    horizontal: 8,
+                                    vertical: 3,
+                                  ),
+                                  decoration: BoxDecoration(
+                                    color: type.toUpperCase() == 'BUSINESS'
+                                        ? (isDark
+                                              ? const Color(0xFF1A2A4A)
+                                              : const Color(0xFFE8F0FE))
+                                        : (isDark
+                                              ? const Color(0xFF1E3A24)
+                                              : const Color(0xFFE6F4EA)),
+                                    borderRadius: BorderRadius.circular(6),
+                                  ),
+                                  child: Text(
+                                    type,
+                                    style: TextStyle(
+                                      fontSize: 11,
+                                      fontWeight: FontWeight.w700,
+                                      color: type.toUpperCase() == 'BUSINESS'
+                                          ? const Color(0xFF1A73E8)
+                                          : const Color(0xFF137333),
+                                    ),
                                   ),
                                 ),
                               ),
                             ),
-                          ),
-                          Expanded(
-                            flex: 2,
-                            child: Align(
-                              alignment: Alignment.centerLeft,
-                              child: isApproved
-                                  ? Container(
-                                      padding: const EdgeInsets.symmetric(
-                                          horizontal: 8, vertical: 3),
-                                      decoration: BoxDecoration(
-                                        color: const Color(0xFFE6F4EA),
-                                        borderRadius: BorderRadius.circular(6),
-                                      ),
-                                      child: const Text(
-                                        'Approved',
-                                        style: TextStyle(
-                                          fontSize: 11,
-                                          fontWeight: FontWeight.w700,
-                                          color: Color(0xFF137333),
-                                        ),
-                                      ),
-                                    )
-                                  : (subId != null
-                                      ? OutlinedButton(
-                                          onPressed: () =>
-                                              _approveChildAccount(subId),
-                                          style: OutlinedButton.styleFrom(
-                                            padding: const EdgeInsets.symmetric(
-                                                horizontal: 8, vertical: 2),
-                                            visualDensity:
-                                                VisualDensity.compact,
-                                            side: const BorderSide(
-                                                color: Color(0xFF1A73E8)),
-                                          ),
-                                          child: const Text(
-                                            'Approve',
-                                            style: TextStyle(
-                                              fontSize: 11,
-                                              fontWeight: FontWeight.w600,
-                                              color: Color(0xFF1A73E8),
-                                            ),
-                                          ),
-                                        )
-                                      : const Text(
-                                          'Active',
-                                          style: TextStyle(
-                                            fontSize: 12,
-                                            color: Color(0xFF137333),
-                                            fontWeight: FontWeight.w600,
-                                          ),
-                                        )),
-                            ),
-                          ),
-                          SizedBox(
-                            width: 50,
-                            child: IconButton(
-                              icon: const Icon(
-                                Icons.delete_outline_rounded,
-                                size: 19,
-                                color: Color(0xFF5F6368),
+                            SizedBox(
+                              width: 50,
+                              child: Align(
+                                alignment: Alignment.centerRight,
+                                child: IconButton(
+                                  icon: const Icon(
+                                    Icons.delete_outline_rounded,
+                                    size: 19,
+                                    color: Color(0xFF5F6368),
+                                  ),
+                                  tooltip: 'Delete Sub-ID',
+                                  onPressed: () => _confirmDeleteSubId(item),
+                                ),
                               ),
-                              tooltip: 'Delete Sub-ID',
-                              onPressed: () => _confirmDeleteSubId(item),
                             ),
-                          ),
-                        ],
-                      ),
-                    );
-                  });
-                }(),
+                          ],
+                        ),
+                      );
+                    });
+                  }(),
               ],
             );
             return isMobile
                 ? SingleChildScrollView(
                     scrollDirection: Axis.horizontal,
                     physics: const BouncingScrollPhysics(),
-                    child: SizedBox(
-                      width: 580,
-                      child: tableContent,
-                    ),
+                    child: SizedBox(width: 580, child: tableContent),
                   )
                 : tableContent;
           }(),
@@ -4512,11 +4765,12 @@ class _ManageAccountScreenState extends ConsumerState<ManageAccountScreen> {
         account: account,
         isDark: isDark,
         onCreated: (newSubId) {
-          _loadSubIds();
+          _loadSubIds(account.email);
           ScaffoldMessenger.of(context).showSnackBar(
             SnackBar(
-              content:
-                  Text('Sub-ID ${newSubId['username']} created successfully'),
+              content: Text(
+                'Sub-ID ${newSubId['username']} created successfully',
+              ),
               behavior: SnackBarBehavior.floating,
               backgroundColor: const Color(0xFF1E8E3E),
             ),
@@ -4529,7 +4783,8 @@ class _ManageAccountScreenState extends ConsumerState<ManageAccountScreen> {
   void _confirmDeleteSubId(Map<String, dynamic> item) async {
     final rawId = item['id'];
     final id = rawId is int ? rawId : int.tryParse(rawId?.toString() ?? '');
-    final username = item['username']?.toString() ??
+    final username =
+        item['username']?.toString() ??
         item['email']?.toString() ??
         'this Sub-ID';
 
@@ -4540,8 +4795,9 @@ class _ManageAccountScreenState extends ConsumerState<ManageAccountScreen> {
     if (id == null) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
-          content:
-              Text('Unable to delete this Sub-ID because its ID is missing.'),
+          content: Text(
+            'Unable to delete this Sub-ID because its ID is missing.',
+          ),
           backgroundColor: Colors.redAccent,
           behavior: SnackBarBehavior.floating,
         ),
@@ -4570,8 +4826,9 @@ class _ManageAccountScreenState extends ConsumerState<ManageAccountScreen> {
 
     if (confirmed == true) {
       try {
+        final email = ref.read(activeAccountProvider).email;
         print('[SUBID DELETE] Calling DELETE endpoint for ID: $id');
-        await UserRepository.deleteSubId(id);
+        await UserRepository.deleteSubId(id, email);
         print('[SUBID DELETE] Successfully deleted Sub-ID ID: $id');
         if (mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
@@ -4582,7 +4839,7 @@ class _ManageAccountScreenState extends ConsumerState<ManageAccountScreen> {
             ),
           );
           print('[SUBID DELETE] Refreshing Sub-ID list:');
-          await _loadSubIds();
+          await _loadSubIds(email);
         }
       } catch (e) {
         print('[SUBID DELETE ERROR] $e');
@@ -4612,7 +4869,9 @@ class _ManageAccountScreenState extends ConsumerState<ManageAccountScreen> {
     final fraction = quota != null ? quota.fraction : 0.0;
     final usedText = quota != null
         ? '${quota.usedFormatted} of ${quota.limitFormatted} used (${quota.percentageFormatted})'
-        : (_isLoadingStorageQuota ? 'Loading storage quota...' : 'Storage details unavailable');
+        : (_isLoadingStorageQuota
+              ? 'Loading storage quota...'
+              : 'Storage details unavailable');
     final mailValue = quota != null ? quota.usedFormatted : '0 MB';
 
     return Column(
@@ -4638,7 +4897,9 @@ class _ManageAccountScreenState extends ConsumerState<ManageAccountScreen> {
                           ? const Color(0xFF3C4043)
                           : const Color(0xFFE8EAED),
                       valueColor: AlwaysStoppedAnimation<Color>(
-                        quota != null ? quota.statusColor : const Color(0xFF1A73E8),
+                        quota != null
+                            ? quota.statusColor
+                            : const Color(0xFF1A73E8),
                       ),
                     ),
                   ),
@@ -4651,12 +4912,17 @@ class _ManageAccountScreenState extends ConsumerState<ManageAccountScreen> {
                         style: TextStyle(
                           fontSize: 14,
                           fontWeight: FontWeight.w600,
-                          color: isDark ? Colors.white : const Color(0xFF202124),
+                          color: isDark
+                              ? Colors.white
+                              : const Color(0xFF202124),
                         ),
                       ),
                       if (quota != null)
                         Container(
-                          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 8,
+                            vertical: 2,
+                          ),
                           decoration: BoxDecoration(
                             color: quota.statusColor.withValues(alpha: 0.15),
                             borderRadius: BorderRadius.circular(6),
@@ -4723,7 +4989,8 @@ class _ManageAccountScreenState extends ConsumerState<ManageAccountScreen> {
   // 6. B2AUTH TAB
   // ═══════════════════════════════════════════════════════════════════════════
   Widget _buildB2AuthTab(AccountModel account, bool isDark, bool isMobile) {
-    final is2Fa = ref.watch(settingsProvider).settings?.twoFactorEnabled ?? false;
+    final is2Fa =
+        ref.watch(settingsProvider).settings?.twoFactorEnabled ?? false;
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -4749,7 +5016,9 @@ class _ManageAccountScreenState extends ConsumerState<ManageAccountScreen> {
                     decoration: BoxDecoration(
                       color: is2Fa
                           ? const Color(0xFFE6F4EA)
-                          : (isDark ? const Color(0xFF3C4043) : const Color(0xFFF1F3F4)),
+                          : (isDark
+                                ? const Color(0xFF3C4043)
+                                : const Color(0xFFF1F3F4)),
                       borderRadius: BorderRadius.circular(6),
                     ),
                     child: Text(
@@ -4775,7 +5044,9 @@ class _ManageAccountScreenState extends ConsumerState<ManageAccountScreen> {
               onTap: () {
                 ScaffoldMessenger.of(context).showSnackBar(
                   const SnackBar(
-                    content: Text('Passkeys are synchronized with your device security settings.'),
+                    content: Text(
+                      'Passkeys are synchronized with your device security settings.',
+                    ),
                     behavior: SnackBarBehavior.floating,
                   ),
                 );
@@ -4789,6 +5060,205 @@ class _ManageAccountScreenState extends ConsumerState<ManageAccountScreen> {
               onTap: () => _openChangePasswordDialog(isDark),
               showDivider: false,
             ),
+          ],
+        ),
+        const SizedBox(height: 24),
+
+        _buildInfoCard(
+          isDark: isDark,
+          title: 'Active Sessions & Devices',
+          subtitle: 'Devices that are currently signed in to your BNX account.',
+          children: [
+            if (_isLoadingSessions)
+              const Padding(
+                padding: EdgeInsets.all(16),
+                child: Center(child: CircularProgressIndicator(strokeWidth: 2)),
+              )
+            else if (_activeSessions.isEmpty)
+              Padding(
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 16,
+                  vertical: 12,
+                ),
+                child: Text(
+                  'No active browser or desktop sessions detected.',
+                  style: TextStyle(
+                    fontSize: 13,
+                    color: isDark ? Colors.white60 : const Color(0xFF5F6368),
+                  ),
+                ),
+              )
+            else
+              ..._activeSessions.map((s) {
+                final id = s['id'] ?? '';
+                final title = s['title'] ?? 'Session';
+                final ip = s['ip'] ?? '';
+                final isCurrent = s['currentSession'] == 'true';
+                return _SettingRow(
+                  isDark: isDark,
+                  icon: Icons.devices_rounded,
+                  label: title,
+                  showChevron: false,
+                  valueWidget: Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            ip,
+                            style: TextStyle(
+                              fontSize: 13,
+                              color: isDark
+                                  ? Colors.white70
+                                  : const Color(0xFF3C4043),
+                            ),
+                          ),
+                          Text(
+                            isCurrent
+                                ? 'Current Session • Active Now'
+                                : (s['lastActive'] ?? 'Active'),
+                            style: TextStyle(
+                              fontSize: 11,
+                              color: isCurrent
+                                  ? const Color(0xFF1E8E3E)
+                                  : (isDark
+                                        ? Colors.white38
+                                        : const Color(0xFF80868B)),
+                              fontWeight: isCurrent
+                                  ? FontWeight.w600
+                                  : FontWeight.normal,
+                            ),
+                          ),
+                        ],
+                      ),
+                      if (!isCurrent && id.isNotEmpty)
+                        TextButton(
+                          onPressed: () async {
+                            final ok = await UserRepository.revokeSession(
+                              id,
+                              email: account.email,
+                            );
+                            if (ok) {
+                              _loadActiveSessions(account.email);
+                              if (mounted) {
+                                ScaffoldMessenger.of(context).showSnackBar(
+                                  const SnackBar(
+                                    content: Text(
+                                      'Session revoked successfully.',
+                                    ),
+                                  ),
+                                );
+                              }
+                            }
+                          },
+                          child: const Text(
+                            'Revoke',
+                            style: TextStyle(color: Colors.redAccent),
+                          ),
+                        ),
+                    ],
+                  ),
+                  showDivider: s != _activeSessions.last,
+                );
+              }),
+          ],
+        ),
+        const SizedBox(height: 24),
+
+        _buildInfoCard(
+          isDark: isDark,
+          title: 'Security & Login Activity',
+          subtitle:
+              'Recent security events, sign-in attempts, and account updates.',
+          children: [
+            if (_isLoadingActivityLogs)
+              const Padding(
+                padding: EdgeInsets.all(16),
+                child: Center(child: CircularProgressIndicator(strokeWidth: 2)),
+              )
+            else if (_activityLogs.isEmpty)
+              Padding(
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 16,
+                  vertical: 12,
+                ),
+                child: Text(
+                  'No recent security activity logged.',
+                  style: TextStyle(
+                    fontSize: 13,
+                    color: isDark ? Colors.white60 : const Color(0xFF5F6368),
+                  ),
+                ),
+              )
+            else
+              ..._activityLogs.take(10).map((log) {
+                final activity = log['activity'] ?? 'Account Event';
+                final ip = log['ip'] ?? '';
+                final details = log['details'] ?? '';
+                final ts = log['timestamp'] ?? '';
+                final isLast = log == _activityLogs.take(10).last;
+
+                String displayTime = ts;
+                if (ts.isNotEmpty) {
+                  final parsed = DateTime.tryParse(ts);
+                  if (parsed != null) {
+                    displayTime =
+                        '${parsed.year}-${parsed.month.toString().padLeft(2, '0')}-${parsed.day.toString().padLeft(2, '0')} ${parsed.hour.toString().padLeft(2, '0')}:${parsed.minute.toString().padLeft(2, '0')}';
+                  }
+                }
+
+                return _SettingRow(
+                  isDark: isDark,
+                  icon: Icons.history_rounded,
+                  label: activity,
+                  showChevron: false,
+                  valueWidget: Column(
+                    crossAxisAlignment: CrossAxisAlignment.end,
+                    children: [
+                      if (details.isNotEmpty)
+                        Text(
+                          details,
+                          style: TextStyle(
+                            fontSize: 12.5,
+                            color: isDark
+                                ? Colors.white70
+                                : const Color(0xFF3C4043),
+                          ),
+                          textAlign: TextAlign.end,
+                        ),
+                      Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          if (ip.isNotEmpty) ...[
+                            Text(
+                              'IP: $ip',
+                              style: TextStyle(
+                                fontSize: 11,
+                                color: isDark
+                                    ? Colors.white38
+                                    : const Color(0xFF80868B),
+                              ),
+                            ),
+                            const SizedBox(width: 8),
+                          ],
+                          if (displayTime.isNotEmpty)
+                            Text(
+                              displayTime,
+                              style: TextStyle(
+                                fontSize: 11,
+                                color: isDark
+                                    ? Colors.white38
+                                    : const Color(0xFF80868B),
+                              ),
+                            ),
+                        ],
+                      ),
+                    ],
+                  ),
+                  showDivider: !isLast,
+                );
+              }),
           ],
         ),
         const SizedBox(height: 40),
@@ -4873,8 +5343,9 @@ class _ManageAccountScreenState extends ConsumerState<ManageAccountScreen> {
                 _nickname = val.isEmpty ? 'Not set' : val;
               });
               Navigator.pop(ctx);
-              await UserRepository.updateProfile({'nickname': val},
-                  email: targetEmail);
+              await UserRepository.updateProfile({
+                'nickname': val,
+              }, email: targetEmail);
             },
             child: const Text('Save'),
           ),
@@ -4912,8 +5383,9 @@ class _ManageAccountScreenState extends ConsumerState<ManageAccountScreen> {
                 _displayName = val.isEmpty ? 'Not set' : val;
               });
               Navigator.pop(ctx);
-              await UserRepository.updateProfile({'displayName': val},
-                  email: targetEmail);
+              await UserRepository.updateProfile({
+                'displayName': val,
+              }, email: targetEmail);
             },
             child: const Text('Save'),
           ),
@@ -4931,10 +5403,10 @@ class _ManageAccountScreenState extends ConsumerState<ManageAccountScreen> {
       lastDate: DateTime.now(),
     );
     if (picked != null) {
-      await UserRepository.updateProfile(
-        {'dob': picked.toIso8601String(), 'birthday': picked.toIso8601String()},
-        email: account.email,
-      );
+      await UserRepository.updateProfile({
+        'dob': picked.toIso8601String(),
+        'birthday': picked.toIso8601String(),
+      }, email: account.email);
       await ref
           .read(accountsProvider.notifier)
           .updateAccountFields(account.id, dob: picked);
@@ -4952,8 +5424,9 @@ class _ManageAccountScreenState extends ConsumerState<ManageAccountScreen> {
             onPressed: () async {
               setState(() => _gender = 'Female');
               Navigator.pop(ctx);
-              await UserRepository.updateProfile({'gender': 'Female'},
-                  email: targetEmail);
+              await UserRepository.updateProfile({
+                'gender': 'Female',
+              }, email: targetEmail);
             },
             child: const Text('Female'),
           ),
@@ -4961,8 +5434,9 @@ class _ManageAccountScreenState extends ConsumerState<ManageAccountScreen> {
             onPressed: () async {
               setState(() => _gender = 'Male');
               Navigator.pop(ctx);
-              await UserRepository.updateProfile({'gender': 'Male'},
-                  email: targetEmail);
+              await UserRepository.updateProfile({
+                'gender': 'Male',
+              }, email: targetEmail);
             },
             child: const Text('Male'),
           ),
@@ -4970,8 +5444,9 @@ class _ManageAccountScreenState extends ConsumerState<ManageAccountScreen> {
             onPressed: () async {
               setState(() => _gender = 'Non-binary');
               Navigator.pop(ctx);
-              await UserRepository.updateProfile({'gender': 'Non-binary'},
-                  email: targetEmail);
+              await UserRepository.updateProfile({
+                'gender': 'Non-binary',
+              }, email: targetEmail);
             },
             child: const Text('Non-binary'),
           ),
@@ -4979,8 +5454,9 @@ class _ManageAccountScreenState extends ConsumerState<ManageAccountScreen> {
             onPressed: () async {
               setState(() => _gender = 'Rather not say');
               Navigator.pop(ctx);
-              await UserRepository.updateProfile({'gender': 'Rather not say'},
-                  email: targetEmail);
+              await UserRepository.updateProfile({
+                'gender': 'Rather not say',
+              }, email: targetEmail);
             },
             child: const Text('Rather not say'),
           ),
@@ -4991,7 +5467,7 @@ class _ManageAccountScreenState extends ConsumerState<ManageAccountScreen> {
 
   void _editRecoveryEmail(AccountModel account) {
     final controller = TextEditingController(
-      text: account.recoveryEmail ?? '',
+      text: _recoveryEmail ?? account.recoveryEmail ?? '',
     );
     showDialog(
       context: context,
@@ -5015,7 +5491,15 @@ class _ManageAccountScreenState extends ConsumerState<ManageAccountScreen> {
             onPressed: () async {
               final newEmail = controller.text.trim();
               Navigator.pop(ctx);
-              await UserRepository.updateProfile({'recoveryEmail': newEmail}, email: account.email);
+              setState(() => _recoveryEmail = newEmail);
+              await UserRepository.updateRecovery(
+                newEmail,
+                _phone ?? account.phone ?? '',
+                email: account.email,
+              );
+              await UserRepository.updateProfile({
+                'recoveryEmail': newEmail,
+              }, email: account.email);
               await ref
                   .read(accountsProvider.notifier)
                   .updateAccountFields(account.id, recoveryEmail: newEmail);
@@ -5029,7 +5513,7 @@ class _ManageAccountScreenState extends ConsumerState<ManageAccountScreen> {
 
   void _editPhone(AccountModel account) {
     final controller = TextEditingController(
-      text: account.phone ?? '',
+      text: _phone ?? account.phone ?? '',
     );
     showDialog(
       context: context,
@@ -5053,6 +5537,12 @@ class _ManageAccountScreenState extends ConsumerState<ManageAccountScreen> {
             onPressed: () async {
               final newPhone = controller.text.trim();
               Navigator.pop(ctx);
+              setState(() => _phone = newPhone);
+              await UserRepository.updateRecovery(
+                _recoveryEmail ?? account.recoveryEmail ?? '',
+                newPhone,
+                email: account.email,
+              );
               await UserRepository.updateProfile({
                 'phoneNumber': newPhone,
                 'phone': newPhone,
@@ -5143,8 +5633,9 @@ class _ManageAccountScreenState extends ConsumerState<ManageAccountScreen> {
                 _occupation = val.isEmpty ? 'None added' : val;
               });
               Navigator.pop(ctx);
-              await UserRepository.updateProfile({'occupation': val},
-                  email: targetEmail);
+              await UserRepository.updateProfile({
+                'occupation': val,
+              }, email: targetEmail);
             },
             child: const Text('Save'),
           ),
@@ -5185,8 +5676,9 @@ class _ManageAccountScreenState extends ConsumerState<ManageAccountScreen> {
                     : val;
               });
               Navigator.pop(ctx);
-              await UserRepository.updateProfile({'bio': val},
-                  email: targetEmail);
+              await UserRepository.updateProfile({
+                'bio': val,
+              }, email: targetEmail);
             },
             child: const Text('Save'),
           ),
@@ -5222,7 +5714,9 @@ class _ManageAccountScreenState extends ConsumerState<ManageAccountScreen> {
       final activeEmail = activeAccount.email.isNotEmpty
           ? activeAccount.email
           : activeAccount.id;
-      await ref.read(accountsProvider.notifier).signOutSingleAccount(
+      await ref
+          .read(accountsProvider.notifier)
+          .signOutSingleAccount(
             targetEmail: activeEmail,
             ref: ref,
             context: context,
@@ -5283,7 +5777,9 @@ class _SettingRowState extends State<_SettingRow> {
     return Column(
       children: [
         MouseRegion(
-          cursor: hasClick ? SystemMouseCursors.click : SystemMouseCursors.basic,
+          cursor: hasClick
+              ? SystemMouseCursors.click
+              : SystemMouseCursors.basic,
           onEnter: (_) {
             if (hasClick) setState(() => _isHovered = true);
           },
@@ -5299,8 +5795,8 @@ class _SettingRowState extends State<_SettingRow> {
               decoration: BoxDecoration(
                 color: _isHovered && hasClick
                     ? (widget.isDark
-                        ? const Color(0xFF2E3238)
-                        : const Color(0xFFF8F9FA))
+                          ? const Color(0xFF2E3238)
+                          : const Color(0xFFF8F9FA))
                     : Colors.transparent,
                 borderRadius: BorderRadius.circular(8),
               ),
@@ -5315,11 +5811,7 @@ class _SettingRowState extends State<_SettingRow> {
                       color: badgeBgColor,
                       shape: BoxShape.circle,
                     ),
-                    child: Icon(
-                      widget.icon,
-                      color: badgeIconColor,
-                      size: 20,
-                    ),
+                    child: Icon(widget.icon, color: badgeIconColor, size: 20),
                   ),
                   const SizedBox(width: 16),
 
@@ -5474,33 +5966,25 @@ class _CreateSubIdDialogState extends State<_CreateSubIdDialog> {
     _CategoryData(
       title: 'POS Billing',
       icon: Icons.desktop_windows_outlined,
-      subItems: const [
-        _SubItemData(title: 'POS Billing', id: 223),
-      ],
+      subItems: const [_SubItemData(title: 'POS Billing', id: 223)],
       isExpanded: true,
     ),
     _CategoryData(
       title: 'Reports',
       icon: Icons.description_outlined,
-      subItems: const [
-        _SubItemData(title: 'Reports', id: 224),
-      ],
+      subItems: const [_SubItemData(title: 'Reports', id: 224)],
       isExpanded: true,
     ),
     _CategoryData(
       title: 'Barcode Gen',
       icon: Icons.local_offer_outlined,
-      subItems: const [
-        _SubItemData(title: 'Barcode Gen', id: 225),
-      ],
+      subItems: const [_SubItemData(title: 'Barcode Gen', id: 225)],
       isExpanded: true,
     ),
     _CategoryData(
       title: 'Marketing',
       icon: Icons.local_offer_outlined,
-      subItems: const [
-        _SubItemData(title: 'Marketing', id: 226),
-      ],
+      subItems: const [_SubItemData(title: 'Marketing', id: 226)],
       isExpanded: true,
     ),
   ];
@@ -5550,7 +6034,9 @@ class _CreateSubIdDialogState extends State<_CreateSubIdDialog> {
     final suffixEmail = widget.account.email;
 
     final surfaceColor = isDark ? const Color(0xFF23262B) : Colors.white;
-    final borderColor = isDark ? const Color(0xFF383C44) : const Color(0xFFE2E4E8);
+    final borderColor = isDark
+        ? const Color(0xFF383C44)
+        : const Color(0xFFE2E4E8);
 
     return Dialog(
       backgroundColor: surfaceColor,
@@ -5586,7 +6072,9 @@ class _CreateSubIdDialogState extends State<_CreateSubIdDialog> {
                               fontSize: 19,
                               fontWeight: FontWeight.w600,
                               letterSpacing: -0.2,
-                              color: isDark ? Colors.white : const Color(0xFF1E2124),
+                              color: isDark
+                                  ? Colors.white
+                                  : const Color(0xFF1E2124),
                             ),
                           ),
                           const SizedBox(height: 2),
@@ -5594,7 +6082,9 @@ class _CreateSubIdDialogState extends State<_CreateSubIdDialog> {
                             'Configure account access and assign isolated permissions.',
                             style: TextStyle(
                               fontSize: 12.5,
-                              color: isDark ? Colors.white60 : const Color(0xFF5F6368),
+                              color: isDark
+                                  ? Colors.white60
+                                  : const Color(0xFF5F6368),
                             ),
                           ),
                         ],
@@ -5605,7 +6095,9 @@ class _CreateSubIdDialogState extends State<_CreateSubIdDialog> {
                       icon: Icon(
                         Icons.close_rounded,
                         size: 20,
-                        color: isDark ? Colors.white60 : const Color(0xFF5F6368),
+                        color: isDark
+                            ? Colors.white60
+                            : const Color(0xFF5F6368),
                       ),
                       tooltip: 'Close',
                       onPressed: () => Navigator.pop(context),
@@ -5669,15 +6161,23 @@ class _CreateSubIdDialogState extends State<_CreateSubIdDialog> {
                       TextButton(
                         onPressed: () => Navigator.pop(context),
                         style: TextButton.styleFrom(
-                          foregroundColor: isDark ? Colors.white70 : const Color(0xFF5F6368),
-                          padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 11),
+                          foregroundColor: isDark
+                              ? Colors.white70
+                              : const Color(0xFF5F6368),
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 18,
+                            vertical: 11,
+                          ),
                           shape: RoundedRectangleBorder(
                             borderRadius: BorderRadius.circular(8),
                           ),
                         ),
                         child: const Text(
                           'Cancel',
-                          style: TextStyle(fontSize: 13, fontWeight: FontWeight.w500),
+                          style: TextStyle(
+                            fontSize: 13,
+                            fontWeight: FontWeight.w500,
+                          ),
                         ),
                       ),
                       FilledButton(
@@ -5686,7 +6186,10 @@ class _CreateSubIdDialogState extends State<_CreateSubIdDialog> {
                           backgroundColor: const Color(0xFF1A73E8),
                           foregroundColor: Colors.white,
                           elevation: 1,
-                          padding: const EdgeInsets.symmetric(horizontal: 22, vertical: 11),
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 22,
+                            vertical: 11,
+                          ),
                           shape: RoundedRectangleBorder(
                             borderRadius: BorderRadius.circular(20),
                           ),
@@ -5702,7 +6205,10 @@ class _CreateSubIdDialogState extends State<_CreateSubIdDialog> {
                               )
                             : const Text(
                                 'Create Sub-ID',
-                                style: TextStyle(fontSize: 13, fontWeight: FontWeight.w600),
+                                style: TextStyle(
+                                  fontSize: 13,
+                                  fontWeight: FontWeight.w600,
+                                ),
                               ),
                       ),
                     ],
@@ -5761,7 +6267,9 @@ class _CreateSubIdDialogState extends State<_CreateSubIdDialog> {
               color: isDark ? const Color(0xFF1B1E22) : Colors.white,
               borderRadius: BorderRadius.circular(8),
               border: Border.all(
-                color: isDark ? const Color(0xFF383C44) : const Color(0xFFD1D5DB),
+                color: isDark
+                    ? const Color(0xFF383C44)
+                    : const Color(0xFFD1D5DB),
               ),
             ),
             child: Row(
@@ -5818,7 +6326,10 @@ class _CreateSubIdDialogState extends State<_CreateSubIdDialog> {
                     ),
                     border: InputBorder.none,
                     isDense: true,
-                    contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 11),
+                    contentPadding: const EdgeInsets.symmetric(
+                      horizontal: 12,
+                      vertical: 11,
+                    ),
                   ),
                 ),
               ),
@@ -5827,8 +6338,12 @@ class _CreateSubIdDialogState extends State<_CreateSubIdDialog> {
                   alignment: Alignment.center,
                   padding: const EdgeInsets.symmetric(horizontal: 10),
                   decoration: BoxDecoration(
-                    color: isDark ? const Color(0xFF181A1D) : const Color(0xFFF1F3F5),
-                    borderRadius: const BorderRadius.horizontal(right: Radius.circular(7)),
+                    color: isDark
+                        ? const Color(0xFF181A1D)
+                        : const Color(0xFFF1F3F5),
+                    borderRadius: const BorderRadius.horizontal(
+                      right: Radius.circular(7),
+                    ),
                     border: Border(left: borderSide),
                   ),
                   child: Text(
@@ -5867,9 +6382,14 @@ class _CreateSubIdDialogState extends State<_CreateSubIdDialog> {
                       ),
                       decoration: InputDecoration(
                         filled: true,
-                        fillColor: isDark ? const Color(0xFF1B1E22) : Colors.white,
+                        fillColor: isDark
+                            ? const Color(0xFF1B1E22)
+                            : Colors.white,
                         isDense: true,
-                        contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 11),
+                        contentPadding: const EdgeInsets.symmetric(
+                          horizontal: 12,
+                          vertical: 11,
+                        ),
                         border: OutlineInputBorder(
                           borderRadius: BorderRadius.circular(8),
                           borderSide: borderSide,
@@ -5880,7 +6400,10 @@ class _CreateSubIdDialogState extends State<_CreateSubIdDialog> {
                         ),
                         focusedBorder: OutlineInputBorder(
                           borderRadius: BorderRadius.circular(8),
-                          borderSide: const BorderSide(color: Color(0xFF1A73E8), width: 1.5),
+                          borderSide: const BorderSide(
+                            color: Color(0xFF1A73E8),
+                            width: 1.5,
+                          ),
                         ),
                       ),
                     ),
@@ -5905,9 +6428,14 @@ class _CreateSubIdDialogState extends State<_CreateSubIdDialog> {
                       ),
                       decoration: InputDecoration(
                         filled: true,
-                        fillColor: isDark ? const Color(0xFF1B1E22) : Colors.white,
+                        fillColor: isDark
+                            ? const Color(0xFF1B1E22)
+                            : Colors.white,
                         isDense: true,
-                        contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 11),
+                        contentPadding: const EdgeInsets.symmetric(
+                          horizontal: 12,
+                          vertical: 11,
+                        ),
                         border: OutlineInputBorder(
                           borderRadius: BorderRadius.circular(8),
                           borderSide: borderSide,
@@ -5918,7 +6446,10 @@ class _CreateSubIdDialogState extends State<_CreateSubIdDialog> {
                         ),
                         focusedBorder: OutlineInputBorder(
                           borderRadius: BorderRadius.circular(8),
-                          borderSide: const BorderSide(color: Color(0xFF1A73E8), width: 1.5),
+                          borderSide: const BorderSide(
+                            color: Color(0xFF1A73E8),
+                            width: 1.5,
+                          ),
                         ),
                       ),
                     ),
@@ -5946,14 +6477,20 @@ class _CreateSubIdDialogState extends State<_CreateSubIdDialog> {
               filled: true,
               fillColor: isDark ? const Color(0xFF1B1E22) : Colors.white,
               isDense: true,
-              contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 11),
+              contentPadding: const EdgeInsets.symmetric(
+                horizontal: 12,
+                vertical: 11,
+              ),
               suffixIcon: IconButton(
                 icon: Icon(
-                  _obscurePassword ? Icons.visibility_off_outlined : Icons.visibility_outlined,
+                  _obscurePassword
+                      ? Icons.visibility_off_outlined
+                      : Icons.visibility_outlined,
                   size: 18,
                   color: isDark ? Colors.white54 : const Color(0xFF757575),
                 ),
-                onPressed: () => setState(() => _obscurePassword = !_obscurePassword),
+                onPressed: () =>
+                    setState(() => _obscurePassword = !_obscurePassword),
                 splashRadius: 16,
               ),
               border: OutlineInputBorder(
@@ -5966,7 +6503,10 @@ class _CreateSubIdDialogState extends State<_CreateSubIdDialog> {
               ),
               focusedBorder: OutlineInputBorder(
                 borderRadius: BorderRadius.circular(8),
-                borderSide: const BorderSide(color: Color(0xFF1A73E8), width: 1.5),
+                borderSide: const BorderSide(
+                  color: Color(0xFF1A73E8),
+                  width: 1.5,
+                ),
               ),
             ),
           ),
@@ -6014,8 +6554,12 @@ class _CreateSubIdDialogState extends State<_CreateSubIdDialog> {
   // BIG CENTRE SUB-TAB: ACCESS PERMISSIONS (330px height, modern scroll list)
   // ═══════════════════════════════════════════════════════════════════════════
   Widget _buildRightPermissions(bool isDark, double height) {
-    final borderColor = isDark ? const Color(0xFF383C44) : const Color(0xFFD1D5DB);
-    final boxBgColor = isDark ? const Color(0xFF1B1E22) : const Color(0xFFFAFBFD);
+    final borderColor = isDark
+        ? const Color(0xFF383C44)
+        : const Color(0xFFD1D5DB);
+    final boxBgColor = isDark
+        ? const Color(0xFF1B1E22)
+        : const Color(0xFFFAFBFD);
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -6028,7 +6572,9 @@ class _CreateSubIdDialogState extends State<_CreateSubIdDialog> {
               Container(
                 padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 2),
                 decoration: BoxDecoration(
-                  color: isDark ? const Color(0xFF1A2A4A) : const Color(0xFFE8F0FE),
+                  color: isDark
+                      ? const Color(0xFF1A2A4A)
+                      : const Color(0xFFE8F0FE),
                   borderRadius: BorderRadius.circular(10),
                 ),
                 child: Text(
@@ -6058,7 +6604,9 @@ class _CreateSubIdDialogState extends State<_CreateSubIdDialog> {
               separatorBuilder: (_, _) => Divider(
                 height: 1,
                 thickness: 0.5,
-                color: isDark ? const Color(0xFF2C3036) : const Color(0xFFEDEFF2),
+                color: isDark
+                    ? const Color(0xFF2C3036)
+                    : const Color(0xFFEDEFF2),
               ),
               itemBuilder: (context, catIndex) {
                 final cat = _categories[catIndex];
@@ -6074,9 +6622,14 @@ class _CreateSubIdDialogState extends State<_CreateSubIdDialog> {
                           cat.isExpanded = !cat.isExpanded;
                         });
                       },
-                      hoverColor: isDark ? const Color(0xFF252930) : const Color(0xFFF1F5F9),
+                      hoverColor: isDark
+                          ? const Color(0xFF252930)
+                          : const Color(0xFFF1F5F9),
                       child: Padding(
-                        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 7),
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 10,
+                          vertical: 7,
+                        ),
                         child: Row(
                           children: [
                             SizedBox(
@@ -6085,8 +6638,11 @@ class _CreateSubIdDialogState extends State<_CreateSubIdDialog> {
                               child: Checkbox(
                                 value: isCatChecked,
                                 activeColor: const Color(0xFF1A73E8),
-                                materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
-                                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(4)),
+                                materialTapTargetSize:
+                                    MaterialTapTargetSize.shrinkWrap,
+                                shape: RoundedRectangleBorder(
+                                  borderRadius: BorderRadius.circular(4),
+                                ),
                                 onChanged: (_) => _toggleCategory(cat),
                               ),
                             ),
@@ -6094,7 +6650,9 @@ class _CreateSubIdDialogState extends State<_CreateSubIdDialog> {
                             Icon(
                               cat.icon,
                               size: 17,
-                              color: isDark ? Colors.white70 : const Color(0xFF374151),
+                              color: isDark
+                                  ? Colors.white70
+                                  : const Color(0xFF374151),
                             ),
                             const SizedBox(width: 8),
                             Expanded(
@@ -6103,7 +6661,9 @@ class _CreateSubIdDialogState extends State<_CreateSubIdDialog> {
                                 style: TextStyle(
                                   fontSize: 13.5,
                                   fontWeight: FontWeight.w600,
-                                  color: isDark ? Colors.white : const Color(0xFF1F2937),
+                                  color: isDark
+                                      ? Colors.white
+                                      : const Color(0xFF1F2937),
                                 ),
                               ),
                             ),
@@ -6112,7 +6672,9 @@ class _CreateSubIdDialogState extends State<_CreateSubIdDialog> {
                                   ? Icons.keyboard_arrow_down_rounded
                                   : Icons.keyboard_arrow_right_rounded,
                               size: 19,
-                              color: isDark ? Colors.white54 : const Color(0xFF6B7280),
+                              color: isDark
+                                  ? Colors.white54
+                                  : const Color(0xFF6B7280),
                             ),
                           ],
                         ),
@@ -6122,21 +6684,37 @@ class _CreateSubIdDialogState extends State<_CreateSubIdDialog> {
                     // Sub Items
                     if (cat.isExpanded)
                       ...cat.subItems.map((subItem) {
-                        final isSubChecked = _checkedSubItems.contains(subItem.id);
+                        final isSubChecked = _checkedSubItems.contains(
+                          subItem.id,
+                        );
 
                         return Padding(
-                          padding: const EdgeInsets.only(left: 28, right: 6, top: 1, bottom: 1),
+                          padding: const EdgeInsets.only(
+                            left: 28,
+                            right: 6,
+                            top: 1,
+                            bottom: 1,
+                          ),
                           child: InkWell(
                             onTap: () => _toggleSubItem(subItem),
-                            hoverColor: isDark ? const Color(0xFF282D36) : const Color(0xFFEBF3FE),
+                            hoverColor: isDark
+                                ? const Color(0xFF282D36)
+                                : const Color(0xFFEBF3FE),
                             borderRadius: BorderRadius.circular(6),
                             child: Container(
-                              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 5),
+                              padding: const EdgeInsets.symmetric(
+                                horizontal: 8,
+                                vertical: 5,
+                              ),
                               decoration: BoxDecoration(
                                 color: isSubChecked
                                     ? (isDark
-                                        ? const Color(0xFF1A2A4A).withValues(alpha: 0.3)
-                                        : const Color(0xFFEBF3FE).withValues(alpha: 0.6))
+                                          ? const Color(
+                                              0xFF1A2A4A,
+                                            ).withValues(alpha: 0.3)
+                                          : const Color(
+                                              0xFFEBF3FE,
+                                            ).withValues(alpha: 0.6))
                                     : Colors.transparent,
                                 borderRadius: BorderRadius.circular(6),
                               ),
@@ -6148,8 +6726,11 @@ class _CreateSubIdDialogState extends State<_CreateSubIdDialog> {
                                     child: Checkbox(
                                       value: isSubChecked,
                                       activeColor: const Color(0xFF1A73E8),
-                                      materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
-                                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(3)),
+                                      materialTapTargetSize:
+                                          MaterialTapTargetSize.shrinkWrap,
+                                      shape: RoundedRectangleBorder(
+                                        borderRadius: BorderRadius.circular(3),
+                                      ),
                                       onChanged: (_) => _toggleSubItem(subItem),
                                     ),
                                   ),
@@ -6159,17 +6740,23 @@ class _CreateSubIdDialogState extends State<_CreateSubIdDialog> {
                                       subItem.title,
                                       style: TextStyle(
                                         fontSize: 13,
-                                        fontWeight: isSubChecked ? FontWeight.w500 : FontWeight.w400,
+                                        fontWeight: isSubChecked
+                                            ? FontWeight.w500
+                                            : FontWeight.w400,
                                         color: isSubChecked
                                             ? const Color(0xFF1A73E8)
-                                            : (isDark ? Colors.white70 : const Color(0xFF374151)),
+                                            : (isDark
+                                                  ? Colors.white70
+                                                  : const Color(0xFF374151)),
                                       ),
                                     ),
                                   ),
                                   Icon(
                                     Icons.chevron_right_rounded,
                                     size: 16,
-                                    color: isDark ? Colors.white38 : const Color(0xFF9CA3AF),
+                                    color: isDark
+                                        ? Colors.white38
+                                        : const Color(0xFF9CA3AF),
                                   ),
                                 ],
                               ),
@@ -6232,11 +6819,15 @@ class _CreateSubIdDialogState extends State<_CreateSubIdDialog> {
         password: password.isNotEmpty ? password : 'TempPassword123!',
         firstName: firstName.isNotEmpty ? firstName : 'Sub',
         lastName: lastName.isNotEmpty ? lastName : 'User',
-        accountType: _accountType.contains('Personal') ? 'PERSONAL' : 'BUSINESS',
+        accountType: _accountType.contains('Personal')
+            ? 'PERSONAL'
+            : 'BUSINESS',
         permissions: perms,
+        accountEmail: baseEmail,
       );
 
-      final createdUsername = res?['username']?.toString() ??
+      final createdUsername =
+          res?['username']?.toString() ??
           res?['subUsername']?.toString() ??
           username;
       widget.onCreated({

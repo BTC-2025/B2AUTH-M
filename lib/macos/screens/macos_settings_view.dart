@@ -135,9 +135,13 @@ class _MacOsSettingsViewState extends State<MacOsSettingsView> {
               ),
               OutlinedButton.icon(
                 onPressed: () {
+                  final activeAcc = context.read<AccountProvider>().selectedAccount;
                   Navigator.of(context).push(
                     MaterialPageRoute(
-                      builder: (_) => const ManageAccountScreen(initialTab: 0),
+                      builder: (_) => ManageAccountScreen(
+                        initialTab: 0,
+                        accountEmail: activeAcc?.email,
+                      ),
                     ),
                   );
                 },

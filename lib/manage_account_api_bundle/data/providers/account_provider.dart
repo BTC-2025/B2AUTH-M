@@ -1,6 +1,8 @@
 import 'dart:typed_data';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:b2auth/core/services/local_storage_service.dart';
+import 'package:b2auth/core/models/user_account.dart';
 import '../../models/account_model.dart';
 import '../repositories/user_repository.dart';
 import '../repositories/auth_repository.dart';
@@ -26,9 +28,10 @@ class AccountsNotifier extends StateNotifier<List<AccountModel>> {
         .trim()
         .toLowerCase();
     final savedRegistry = await TokenService.getSavedAccountsFromRegistry();
-    final userProfile = await UserRepository.getProfile();
+    final userProfile = await UserRepository.getProfile(email: loggedInEmail);
 
     List<AccountModel> mergedList = [];
+    final localAccounts = LocalStorageService.getAccounts();
 
     // 1. Build accounts from saved local registry
     for (final reg in savedRegistry) {
@@ -41,6 +44,21 @@ class AccountsNotifier extends StateNotifier<List<AccountModel>> {
       final isCurrentActive =
           (loggedInEmail.isNotEmpty && regEmail == loggedInEmail);
 
+      final matchingLocal = localAccounts.firstWhere(
+        (a) => a.email.trim().toLowerCase() == regEmail,
+        orElse: () => UserAccount(
+          id: '',
+          name: '',
+          displayName: '',
+          username: '',
+          email: '',
+          avatarLetter: '',
+          createdAt: DateTime.now(),
+          lastUsed: DateTime.now(),
+          type: AccountType.personal,
+        ),
+      );
+
       final avatar = (savedAvatar != null && savedAvatar.isNotEmpty)
           ? savedAvatar
           : ((isCurrentActive &&
@@ -48,13 +66,15 @@ class AccountsNotifier extends StateNotifier<List<AccountModel>> {
                     userProfile.avatarUrl != null &&
                     userProfile.avatarUrl!.isNotEmpty)
                 ? userProfile.avatarUrl
-                : null);
+                : matchingLocal.avatarUrl);
 
       final phone = cachedSettings['phoneNumber']?.toString() ??
           cachedSettings['phone']?.toString() ??
-          (isCurrentActive ? userProfile?.phone : null);
+          (isCurrentActive ? userProfile?.phone : null) ??
+          (matchingLocal.phoneNumber?.isNotEmpty == true ? matchingLocal.phoneNumber : null);
       final recovery = cachedSettings['recoveryEmail']?.toString() ??
-          (isCurrentActive ? userProfile?.recoveryEmail : null);
+          (isCurrentActive ? userProfile?.recoveryEmail : null) ??
+          (matchingLocal.recoveryEmail?.isNotEmpty == true ? matchingLocal.recoveryEmail : null);
       final dobStr = cachedSettings['dob']?.toString();
       final dob = dobStr != null ? DateTime.tryParse(dobStr) : null;
 
@@ -66,7 +86,7 @@ class AccountsNotifier extends StateNotifier<List<AccountModel>> {
                   userProfile != null &&
                   userProfile.name.isNotEmpty)
               ? userProfile.name
-              : regName,
+              : (matchingLocal.name.isNotEmpty ? matchingLocal.name : regName),
           email: regEmail,
           avatarColor: const Color(0xFF195BAC),
           isActive:

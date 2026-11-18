@@ -4,6 +4,7 @@ import 'package:uuid/uuid.dart';
 import '../../core/models/user_account.dart';
 import '../../core/providers/account_provider.dart';
 import '../../core/services/local_storage_service.dart';
+import '../../manage_account_api_bundle/core/network/token_service.dart';
 import '../../screens/auth/notifiers/auth_notifier.dart';
 import '../../screens/auth/notifiers/login_notifier.dart';
 import '../../screens/auth/register_account_type_screen.dart';
@@ -37,15 +38,13 @@ class _MacOsLoginViewState extends State<MacOsLoginView> {
 
     final cleanEmail = email.trim();
     final cleanLower = cleanEmail.toLowerCase();
+    final normalizedEmail = cleanLower.contains('@') ? cleanLower : '$cleanLower@bnxmail.com';
     final name = cleanLower.contains('@') ? cleanLower.split('@').first : cleanLower;
 
-    // Check if an account for this user already exists by email, username, or prefix
+    // Check if an account for this user already exists strictly by normalized email
     UserAccount? existingAccount;
     for (final a in accountProvider.accounts) {
-      final aEmail = a.email.trim().toLowerCase();
-      final aUname = a.username.trim().toLowerCase();
-      final aPrefix = aEmail.contains('@') ? aEmail.split('@').first : aEmail;
-      if (aEmail == cleanLower || (aUname.isNotEmpty && aUname == name) || (aPrefix.isNotEmpty && aPrefix == name)) {
+      if (a.email.trim().toLowerCase() == normalizedEmail) {
         existingAccount = a;
         break;
       }
@@ -57,7 +56,7 @@ class _MacOsLoginViewState extends State<MacOsLoginView> {
         name: name.toUpperCase(),
         displayName: name,
         username: name,
-        email: cleanEmail.contains('@') ? cleanEmail : '$cleanEmail@bnxmail.com',
+        email: normalizedEmail,
         avatarLetter: name.isNotEmpty ? name[0].toUpperCase() : 'B',
         createdAt: DateTime.now(),
         lastUsed: DateTime.now(),
@@ -66,21 +65,41 @@ class _MacOsLoginViewState extends State<MacOsLoginView> {
         token: accessToken,
       );
       LocalStorageService.setAccountToken(newAcc.id, accessToken);
-      LocalStorageService.setString('token_${newAcc.email.toLowerCase()}', accessToken);
+      LocalStorageService.setString('token_${newAcc.id}', accessToken);
+      LocalStorageService.setString('token_$normalizedEmail', accessToken);
+      LocalStorageService.setString('access_token', accessToken);
+      LocalStorageService.setString('active_email', normalizedEmail);
+      LocalStorageService.setSelectedAccountId(newAcc.id);
       accountProvider.addAccount(newAcc);
       existingAccount = newAcc;
     } else {
       existingAccount.token = accessToken;
+      existingAccount.email = normalizedEmail;
       LocalStorageService.setAccountToken(existingAccount.id, accessToken);
-      LocalStorageService.setString('token_${existingAccount.email.toLowerCase()}', accessToken);
-      if (cleanEmail.contains('@') && !existingAccount.email.contains('@')) {
-        existingAccount.email = cleanEmail;
-      }
+      LocalStorageService.setString('token_${existingAccount.id}', accessToken);
+      LocalStorageService.setString('token_$normalizedEmail', accessToken);
+      LocalStorageService.setString('access_token', accessToken);
+      LocalStorageService.setString('active_email', normalizedEmail);
+      LocalStorageService.setSelectedAccountId(existingAccount.id);
       existingAccount.lastUsed = DateTime.now();
       accountProvider.updateAccount(existingAccount);
-      accountProvider.switchAccount(existingAccount.id, authNotifier: context.read<AuthNotifier>());
     }
 
+    // Persist session tokens and info into TokenService registry
+    TokenService.saveTokens(accessToken: accessToken, refreshToken: '');
+    TokenService.saveUserInfo(
+      email: normalizedEmail,
+      name: existingAccount.displayName.isNotEmpty ? existingAccount.displayName : existingAccount.name,
+    );
+    TokenService.saveAccountToRegistry({
+      'id': existingAccount.id,
+      'email': normalizedEmail,
+      'name': existingAccount.displayName.isNotEmpty ? existingAccount.displayName : existingAccount.name,
+      'accessToken': accessToken,
+      'isPrimary': true,
+    });
+
+    accountProvider.switchAccount(existingAccount.id, authNotifier: context.read<AuthNotifier>());
     context.read<AuthNotifier>().loginSuccess(accessToken: accessToken, email: existingAccount.email);
 
     Navigator.of(context).pushAndRemoveUntil(
@@ -191,37 +210,10 @@ class _MacOsLoginViewState extends State<MacOsLoginView> {
       return;
     }
 
-    final accountProvider = context.read<AccountProvider>();
-    final cleanIdentifier = email.toLowerCase();
-
-    // Check if already logged in locally
-    final existingAccount = accountProvider.accounts.firstWhere(
-      (a) => a.email.trim().toLowerCase() == cleanIdentifier || a.username.trim().toLowerCase() == cleanIdentifier,
-      orElse: () => UserAccount(
-        id: '',
-        name: '',
-        displayName: '',
-        username: '',
-        email: '',
-        avatarLetter: '',
-        createdAt: DateTime.now(),
-        lastUsed: DateTime.now(),
-      ),
-    );
-
-    if (existingAccount.id.isNotEmpty) {
-      accountProvider.switchAccount(existingAccount.id);
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('${existingAccount.email} active session restored.'),
-            backgroundColor: MacOsTheme.brandBlue,
-          ),
-        );
-        Navigator.of(context).pushReplacement(
-          MaterialPageRoute(builder: (_) => const HomeScreen()),
-        );
-      }
+    if (password.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Please enter your password')),
+      );
       return;
     }
 
@@ -233,7 +225,7 @@ class _MacOsLoginViewState extends State<MacOsLoginView> {
     if (result['requires2FA'] == true) {
       _show2FaDialog();
     } else if (result['success'] == true) {
-      _onLoginSuccess(email, result['accessToken'] ?? '');
+      _onLoginSuccess(result['email'] ?? email, result['accessToken'] ?? '');
     } else {
       final errorMsg = result['message'] ?? _loginNotifier.value.generalError ?? 'Authentication failed';
       ScaffoldMessenger.of(context).showSnackBar(

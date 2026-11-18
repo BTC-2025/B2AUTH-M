@@ -12,6 +12,8 @@ import '../home_screen.dart';
 import '../../core/providers/account_provider.dart';
 import '../../core/models/user_account.dart';
 import '../../core/services/auth_api_service.dart';
+import '../../core/services/local_storage_service.dart';
+import '../../manage_account_api_bundle/core/network/token_service.dart';
 import '../../macos/screens/macos_login_view.dart';
 import 'package:uuid/uuid.dart';
 
@@ -269,28 +271,68 @@ class _LoginScreenState extends State<LoginScreen>
 
   void _onLoginSuccess(String email, String accessToken) {
     final accountProvider = context.read<AccountProvider>();
-    final existingAccount = accountProvider.accounts.firstWhere(
-      (a) => a.email.toLowerCase() == email.toLowerCase(),
-      orElse: () {
-        final name = email.split('@').first;
-        final newAcc = UserAccount(
-          id: const Uuid().v4(),
-          name: name.toUpperCase(),
-          displayName: name,
-          username: name.toLowerCase(),
-          email: email,
-          avatarLetter: name.isNotEmpty ? name[0].toUpperCase() : 'B',
-          createdAt: DateTime.now(),
-          lastUsed: DateTime.now(),
-          type: AccountType.personal,
-        );
-        accountProvider.addAccount(newAcc);
-        return newAcc;
-      },
-    );
+    final cleanEmail = email.trim();
+    final cleanLower = cleanEmail.toLowerCase();
+    final normalizedEmail = cleanLower.contains('@') ? cleanLower : '$cleanLower@bnxmail.com';
+    final name = cleanLower.contains('@') ? cleanLower.split('@').first : cleanLower;
 
-    accountProvider.switchAccount(existingAccount.id);
-    context.read<AuthNotifier>().loginSuccess(accessToken: accessToken, email: email);
+    UserAccount? existingAccount;
+    for (final a in accountProvider.accounts) {
+      if (a.email.trim().toLowerCase() == normalizedEmail) {
+        existingAccount = a;
+        break;
+      }
+    }
+
+    if (existingAccount == null) {
+      final newAcc = UserAccount(
+        id: const Uuid().v4(),
+        name: name.toUpperCase(),
+        displayName: name,
+        username: name.toLowerCase(),
+        email: normalizedEmail,
+        avatarLetter: name.isNotEmpty ? name[0].toUpperCase() : 'B',
+        createdAt: DateTime.now(),
+        lastUsed: DateTime.now(),
+        type: AccountType.personal,
+        token: accessToken,
+      );
+      LocalStorageService.setAccountToken(newAcc.id, accessToken);
+      LocalStorageService.setString('token_${newAcc.id}', accessToken);
+      LocalStorageService.setString('token_$normalizedEmail', accessToken);
+      LocalStorageService.setString('access_token', accessToken);
+      LocalStorageService.setString('active_email', normalizedEmail);
+      LocalStorageService.setSelectedAccountId(newAcc.id);
+      accountProvider.addAccount(newAcc);
+      existingAccount = newAcc;
+    } else {
+      existingAccount.token = accessToken;
+      existingAccount.email = normalizedEmail;
+      LocalStorageService.setAccountToken(existingAccount.id, accessToken);
+      LocalStorageService.setString('token_${existingAccount.id}', accessToken);
+      LocalStorageService.setString('token_$normalizedEmail', accessToken);
+      LocalStorageService.setString('access_token', accessToken);
+      LocalStorageService.setString('active_email', normalizedEmail);
+      LocalStorageService.setSelectedAccountId(existingAccount.id);
+      existingAccount.lastUsed = DateTime.now();
+      accountProvider.updateAccount(existingAccount);
+    }
+
+    TokenService.saveTokens(accessToken: accessToken, refreshToken: '');
+    TokenService.saveUserInfo(
+      email: normalizedEmail,
+      name: existingAccount.displayName.isNotEmpty ? existingAccount.displayName : existingAccount.name,
+    );
+    TokenService.saveAccountToRegistry({
+      'id': existingAccount.id,
+      'email': normalizedEmail,
+      'name': existingAccount.displayName.isNotEmpty ? existingAccount.displayName : existingAccount.name,
+      'accessToken': accessToken,
+      'isPrimary': true,
+    });
+
+    accountProvider.switchAccount(existingAccount.id, authNotifier: context.read<AuthNotifier>());
+    context.read<AuthNotifier>().loginSuccess(accessToken: accessToken, email: normalizedEmail);
 
     Navigator.of(context).pushReplacement(
       MaterialPageRoute(builder: (_) => const HomeScreen()),
@@ -302,49 +344,17 @@ class _LoginScreenState extends State<LoginScreen>
     final password = _passwordController.text;
     debugPrint('🔑 [SIGN IN BUTTON PRESSED] Email: $email');
 
-    if (email.isEmpty) return;
+    if (email.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Please enter your email')),
+      );
+      return;
+    }
 
-    final accountProvider = context.read<AccountProvider>();
-    final cleanIdentifier = email.toLowerCase();
-    
-    // Check if account is ALREADY logged in on this mobile device
-    final existingAccount = accountProvider.accounts.firstWhere(
-      (a) => a.email.trim().toLowerCase() == cleanIdentifier || a.username.trim().toLowerCase() == cleanIdentifier,
-      orElse: () => UserAccount(
-        id: '',
-        name: '',
-        displayName: '',
-        username: '',
-        email: '',
-        avatarLetter: '',
-        createdAt: DateTime.now(),
-        lastUsed: DateTime.now(),
-      ),
-    );
-
-    if (existingAccount.id.isNotEmpty) {
-      accountProvider.switchAccount(existingAccount.id);
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Row(
-              children: [
-                const Icon(Icons.check_circle_outline, color: Colors.white, size: 20),
-                const SizedBox(width: 10),
-                Expanded(
-                  child: Text('${existingAccount.email} is already logged in! Switched to active session.'),
-                ),
-              ],
-            ),
-            backgroundColor: const Color(0xFF2563EB),
-            behavior: SnackBarBehavior.floating,
-            duration: const Duration(seconds: 4),
-          ),
-        );
-        Navigator.of(context).pushReplacement(
-          MaterialPageRoute(builder: (_) => const HomeScreen()),
-        );
-      }
+    if (password.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Please enter your password')),
+      );
       return;
     }
 
@@ -355,7 +365,7 @@ class _LoginScreenState extends State<LoginScreen>
     if (result['requires2FA'] == true) {
       _show2FaDialog();
     } else if (result['success'] == true) {
-      _onLoginSuccess(email, result['accessToken'] ?? '');
+      _onLoginSuccess(result['email'] ?? email, result['accessToken'] ?? '');
     } else {
       final errorMsg = result['message'] ?? _loginNotifier.value.generalError ?? 'Authentication failed';
       ScaffoldMessenger.of(context).showSnackBar(

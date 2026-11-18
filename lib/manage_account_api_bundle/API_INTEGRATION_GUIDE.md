@@ -104,13 +104,13 @@ All APIs are routed through the centralized HTTP client [`ApiClient`](file:///Us
 
 ---
 
-### 1.5 Team & Sub-IDs Tab
-| # | API Endpoint | HTTP Method | Triggering UI Method | Line in `manage_account_screen.dart` | Repository & Service |
+### 1.5 Team & Sub-IDs Tab (Multi-User & Permission Controls)
+| # | API Endpoint | HTTP Method | Full URL | Triggering UI Method | Repository & Service |
 |---|---|---|---|---|---|
-| 21 | `/api/subid/list` | `GET` | `_loadSubIds()` | L1019–1035, L4284–4420 | `UserRepository.listSubIds()` |
-| 22 | `/api/subid/create` | `POST` | `_openCreateSubIdDialog()` -> `_handleCreateSubId()` | L6185–6217 | `UserRepository.createSubId()` |
-| 23 | `/api/subid/{id}` | `DELETE` | `_confirmDeleteSubId(id, username)` | L4524–4553 | `UserRepository.deleteSubId(id)` |
-| 24 | `/api/users/{id}/approve` | `PATCH` | `_approveChildAccount(subId)` | L1037–1060 | `UserRepository.approveChildAccount(subId)` |
+| 21 | `/api/subid/list` | `GET` | `https://api.bnxmail.com/api/subid/list` | `_loadSubIds()` | `UserRepository.listSubIds()` |
+| 22 | `/api/subid/create` | `POST` | `https://api.bnxmail.com/api/subid/create` | `_openCreateSubIdDialog()` -> `_submit()` | `UserRepository.createSubId()` |
+| 23 | `/api/subid/{id}` | `DELETE` | `https://api.bnxmail.com/api/subid/{id}` | `_confirmDeleteSubId(item)` | `UserRepository.deleteSubId(id)` |
+| 24 | `/api/users/{userId}/approve` | `PATCH` | `https://api.bnxmail.com/api/users/{userId}/approve` | `_approveChildAccount(subId)` | `UserRepository.approveChildAccount(userId)` |
 
 #### Details: Create Sub-ID Request Payload:
 ```json
@@ -120,34 +120,40 @@ All APIs are routed through the centralized HTTP client [`ApiClient`](file:///Us
   "firstName": "John",
   "lastName": "Doe",
   "accountType": "BUSINESS",
-  "permissions": [1, 2, 3]
+  "permissions": [210, 211, 212]
 }
 ```
 
 ---
 
 ### 1.6 Account Storage Tab
-| # | API Endpoint | HTTP Method | Triggering UI Method | Line in `manage_account_screen.dart` | Repository & Service |
+| # | API Endpoint | HTTP Method | Full URL | Triggering UI Method | Repository & Service |
 |---|---|---|---|---|---|
-| 25 | `/api/mail/storage-quota` | `GET` | `_loadStorageQuota()` | L130–146, L4558–4670 | `StorageRepository.fetchStorageQuota()` |
+| 25 | `/api/mail/storage-quota` | `GET` | `https://api.bnxmail.com/api/mail/storage-quota` | `_loadStorageQuota()` | `StorageRepository.fetchStorageQuota()` |
 
 #### Details:
-- Displays usage bar, used MB/GB, maximum quota (e.g., 5 GB), status badge (`Normal`, `Warning`, `High`, `Critical`), and breakdowns.
+- Real-time used bytes, total limit (5 GB / 5,368,709,120 bytes), and percentage (`storagePercentage`).
+- Displays progress bar, used/limit formatted strings, status badge (`Normal`, `Warning`, `High`, `Critical`), and app breakdown.
 
 ---
 
-### 1.7 B2Auth Tab & Signing in to BNX Subpage
-| # | API Endpoint | HTTP Method | Triggering UI Method | Line in `manage_account_screen.dart` | Repository & Service |
+### 1.7 B2Auth, Security & 2-Factor Authentication
+| # | API Endpoint | HTTP Method | Full URL | Triggering UI Method | Repository & Service |
 |---|---|---|---|---|---|
-| 26 | `/api/users/2fa/setup` | `POST` | `_open2FAManagement()` | L438–470 | `ref.read(settingsProvider.notifier).setup2FA()` -> `SettingsRepository.setup2FA()` |
-| 27 | `/api/users/2fa/verify` | `POST` | `_show2FASetupDialog()` verify button | L660–705 | `ref.read(settingsProvider.notifier).verify2FA(code)` -> `SettingsRepository.verify2FA()` |
-| 28 | `/api/users/2fa/disable` | `POST` | `_open2FAManagement()` disable action | L412–436 | `ref.read(settingsProvider.notifier).disable2FA()` -> `SettingsRepository.disable2FA()` |
-| 29 | `/api/auth/change-password` | `POST` | `_openChangePasswordDialog()` | L210–384, L342 | `UserRepository.changePassword(oldP, newP)` |
+| 26 | `/api/auth/change-password` | `POST` | `https://api.bnxmail.com/api/auth/change-password` | `_openChangePasswordDialog()` | `UserRepository.changePassword(oldP, newP)` |
+| 27 | `/api/users/2fa/setup` | `POST` | `https://api.bnxmail.com/api/users/2fa/setup` | `_open2FAManagement()` | `SettingsRepository.setup2FA()` |
+| 28 | `/api/users/2fa/verify` | `POST` | `https://api.bnxmail.com/api/users/2fa/verify` | `_show2FASetupDialog()` verify action | `SettingsRepository.verify2FA(code)` |
+| 29 | `/api/users/2fa/disable` | `POST` | `https://api.bnxmail.com/api/users/2fa/disable` | `_open2FAManagement()` disable action | `SettingsRepository.disable2FA()` |
+| 30 | `/api/auth/sessions` | `GET` | `https://api.bnxmail.com/api/auth/sessions` | `_loadActiveSessions()` | `UserRepository.getSessions()` |
+| 31 | `/api/auth/sessions/{sessionId}` | `DELETE` | `https://api.bnxmail.com/api/auth/sessions/{sessionId}` | Active session "Revoke" button | `UserRepository.revokeSession(sessionId)` |
+| 32 | `/api/users/activity-logs` | `GET` | `https://api.bnxmail.com/api/users/activity-logs` | `_loadActivityLogs()` | `UserRepository.getActivityLogs()` |
 
 #### Details:
+- **Change Password**: Validates and sends `oldPassword` and `newPassword`.
 - **2FA Setup**: Returns secret key and QR code data (`TwoFactorSetupData`).
 - **2FA Verify**: Takes 6-digit TOTP code `{"code": "123456"}` and activates 2FA.
-- **Change Password**: Takes `{"currentPassword": "...", "newPassword": "..."}`.
+- **Active Sessions**: Lists active device logins, IPs, and browser User-Agents with remote revocation.
+- **Activity Logs**: Lists security audit trails (activity, IP, details, timestamp).
 
 ---
 

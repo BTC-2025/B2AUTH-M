@@ -31,13 +31,14 @@ class ApiClient {
   static Future<Map<String, String>> _headers({
     bool auth = true,
     String? tempToken,
+    String? accountEmail,
   }) async {
     final headers = <String, String>{
       'Content-Type': 'application/json',
       'Accept': 'application/json',
     };
     if (auth) {
-      final token = tempToken ?? await TokenService.getAccessToken();
+      final token = tempToken ?? await TokenService.getAccessToken(accountEmail);
       if (token != null && token.isNotEmpty) {
         headers['Authorization'] = 'Bearer $token';
       }
@@ -118,9 +119,10 @@ class ApiClient {
     Map<String, String>? queryParams,
     bool auth = true,
     String? tempToken,
+    String? accountEmail,
   }) async {
     final uri = _buildUri(path, queryParams);
-    final headers = await _headers(auth: auth, tempToken: tempToken);
+    final headers = await _headers(auth: auth, tempToken: tempToken, accountEmail: accountEmail);
     final loggedHeaders = Map<String, String>.from(headers)
       ..remove('Authorization');
 
@@ -148,7 +150,7 @@ class ApiClient {
       print('[API INFO] GET $uri returned 401. Attempting token refresh...');
       final refreshed = await _tryRefresh();
       if (refreshed) {
-        final retryHeaders = await _headers(auth: auth);
+        final retryHeaders = await _headers(auth: auth, accountEmail: accountEmail);
         try {
           r = await http.get(uri, headers: retryHeaders).timeout(_timeout);
           print(
@@ -182,9 +184,10 @@ class ApiClient {
     Map<String, String>? queryParams,
     bool auth = true,
     String? tempToken,
+    String? accountEmail,
   }) async {
     final uri = _buildUri(path, queryParams);
-    final headers = await _headers(auth: auth, tempToken: tempToken);
+    final headers = await _headers(auth: auth, tempToken: tempToken, accountEmail: accountEmail);
     final loggedHeaders = Map<String, String>.from(headers)
       ..remove('Authorization');
 
@@ -213,7 +216,7 @@ class ApiClient {
       print('[API INFO] POST $uri returned 401. Attempting token refresh...');
       final refreshed = await _tryRefresh();
       if (refreshed) {
-        final retryHeaders = await _headers(auth: auth);
+        final retryHeaders = await _headers(auth: auth, accountEmail: accountEmail);
         try {
           r = await http
               .post(uri, headers: retryHeaders, body: json.encode(body ?? {}))
@@ -248,9 +251,10 @@ class ApiClient {
     Map<String, dynamic>? body,
     bool auth = true,
     String? tempToken,
+    String? accountEmail,
   }) async {
     final uri = _buildUri(path);
-    final headers = await _headers(auth: auth, tempToken: tempToken);
+    final headers = await _headers(auth: auth, tempToken: tempToken, accountEmail: accountEmail);
     final loggedHeaders = Map<String, String>.from(headers)
       ..remove('Authorization');
 
@@ -279,7 +283,7 @@ class ApiClient {
       print('[API INFO] PUT $uri returned 401. Attempting token refresh...');
       final refreshed = await _tryRefresh();
       if (refreshed) {
-        final retryHeaders = await _headers(auth: auth);
+        final retryHeaders = await _headers(auth: auth, accountEmail: accountEmail);
         r = await http
             .put(uri, headers: retryHeaders, body: json.encode(body ?? {}))
             .timeout(_timeout);
@@ -301,9 +305,10 @@ class ApiClient {
     String path, {
     Map<String, dynamic>? body,
     bool auth = true,
+    String? accountEmail,
   }) async {
     final uri = _buildUri(path);
-    final headers = await _headers(auth: auth);
+    final headers = await _headers(auth: auth, accountEmail: accountEmail);
     final loggedHeaders = Map<String, String>.from(headers)
       ..remove('Authorization');
 
@@ -332,7 +337,7 @@ class ApiClient {
       print('[API INFO] PATCH $uri returned 401. Attempting token refresh...');
       final refreshed = await _tryRefresh();
       if (refreshed) {
-        final retryHeaders = await _headers(auth: auth);
+        final retryHeaders = await _headers(auth: auth, accountEmail: accountEmail);
         r = await http
             .patch(uri, headers: retryHeaders, body: json.encode(body ?? {}))
             .timeout(_timeout);
@@ -354,9 +359,10 @@ class ApiClient {
     String path, {
     Map<String, String>? queryParams,
     bool auth = true,
+    String? accountEmail,
   }) async {
     final uri = _buildUri(path, queryParams);
-    final headers = await _headers(auth: auth);
+    final headers = await _headers(auth: auth, accountEmail: accountEmail);
     final loggedHeaders = Map<String, String>.from(headers)
       ..remove('Authorization');
 
@@ -383,7 +389,7 @@ class ApiClient {
       print('[API INFO] DELETE $uri returned 401. Attempting token refresh...');
       final refreshed = await _tryRefresh();
       if (refreshed) {
-        final retryHeaders = await _headers(auth: auth);
+        final retryHeaders = await _headers(auth: auth, accountEmail: accountEmail);
         r = await http.delete(uri, headers: retryHeaders).timeout(_timeout);
         print(
           '[API RESPONSE RETRY] DELETE $uri | Status: ${r.statusCode} | Body: ${r.body.length > 300 ? "${r.body.substring(0, 300)}..." : r.body}',
@@ -423,9 +429,10 @@ class ApiClient {
     String? filePath, {
     Uint8List? bytes,
     String? filename,
+    String? accountEmail,
   }) async {
     final uri = Uri.parse('$_base/api/users/profile-picture');
-    final headers = await _headers(auth: true);
+    final headers = await _headers(auth: true, accountEmail: accountEmail);
     headers.remove('Content-Type'); // Let http package handle Content-Type & boundary!
 
     final request = http.MultipartRequest('POST', uri);

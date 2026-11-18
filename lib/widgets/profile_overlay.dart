@@ -194,9 +194,14 @@ class ProfileOverlay extends StatelessWidget {
                 width: double.infinity,
                 child: OutlinedButton(
                   onPressed: () {
+                    final activeAcc = context.read<AccountProvider>().selectedAccount;
                     Navigator.pop(context);
                     Navigator.of(context).push(
-                      MaterialPageRoute(builder: (_) => const ManageAccountScreen()),
+                      MaterialPageRoute(
+                        builder: (_) => ManageAccountScreen(
+                          accountEmail: activeAcc?.email,
+                        ),
+                      ),
                     );
                   },
                   style: OutlinedButton.styleFrom(
