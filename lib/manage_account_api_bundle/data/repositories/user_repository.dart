@@ -9,7 +9,10 @@ import '../../models/user_model.dart';
 class UserRepository {
   // ── Current User Profile ─────────────────────────────────────────────────
 
-  static Future<UserModel?> getProfile({String? email, String? tempToken}) async {
+  static Future<UserModel?> getProfile({
+    String? email,
+    String? tempToken,
+  }) async {
     try {
       dynamic res;
       Map<String, dynamic> data = {};
@@ -18,30 +21,47 @@ class UserRepository {
           : (await TokenService.getUserEmail() ?? '').trim().toLowerCase();
 
       try {
-        res = await ApiClient.get('/api/users/me', tempToken: tempToken, accountEmail: cleanEmail);
-        data = (res['data'] as Map<String, dynamic>?) ?? (res is Map<String, dynamic> ? res : {});
+        res = await ApiClient.get(
+          '/api/users/me',
+          tempToken: tempToken,
+          accountEmail: cleanEmail,
+        );
+        data =
+            (res['data'] as Map<String, dynamic>?) ??
+            (res is Map<String, dynamic> ? res : {});
       } catch (_) {
         try {
-          res = await ApiClient.get('/api/users/settings', tempToken: tempToken, accountEmail: cleanEmail);
+          res = await ApiClient.get(
+            '/api/users/settings',
+            tempToken: tempToken,
+            accountEmail: cleanEmail,
+          );
           data = (res['data'] as Map<String, dynamic>?) ?? res;
         } catch (_) {}
       }
 
       // Fetch recovery info if available
       try {
-        final rec = await ApiClient.get('/api/users/recovery', tempToken: tempToken, accountEmail: cleanEmail);
+        final rec = await ApiClient.get(
+          '/api/users/recovery',
+          tempToken: tempToken,
+          accountEmail: cleanEmail,
+        );
         final rData = (rec['data'] as Map<String, dynamic>?) ?? rec;
-        if (rData['recoveryEmail'] != null && rData['recoveryEmail'].toString().isNotEmpty) {
+        if (rData['recoveryEmail'] != null &&
+            rData['recoveryEmail'].toString().isNotEmpty) {
           data['recoveryEmail'] = rData['recoveryEmail'].toString();
         }
-        if (rData['phoneNumber'] != null && rData['phoneNumber'].toString().isNotEmpty) {
+        if (rData['phoneNumber'] != null &&
+            rData['phoneNumber'].toString().isNotEmpty) {
           data['phoneNumber'] = rData['phoneNumber'].toString();
           data['phone'] = rData['phoneNumber'].toString();
         }
       } catch (_) {}
 
       if (data.isEmpty) return null;
-      if ((data['email'] == null || data['email'].toString().isEmpty) && cleanEmail.isNotEmpty) {
+      if ((data['email'] == null || data['email'].toString().isEmpty) &&
+          cleanEmail.isNotEmpty) {
         data['email'] = cleanEmail;
       }
       final user = UserModel.fromJson(data);
@@ -51,20 +71,31 @@ class UserRepository {
         if (data['businessOnboarded'] == true ||
             data['businessOnboardingCompleted'] == true ||
             data['business_onboarded'] == true ||
-            (data['businessType'] != null && data['businessType'].toString().isNotEmpty) ||
-            (data['companySize'] != null && data['companySize'].toString().isNotEmpty) ||
-            (data['industry'] != null && data['industry'].toString().isNotEmpty) ||
-            (data['businessAddress'] != null && data['businessAddress'].toString().isNotEmpty)) {
-          await TokenService.setBusinessOnboardingCompleted(cleanEmail, completed: true);
+            (data['businessType'] != null &&
+                data['businessType'].toString().isNotEmpty) ||
+            (data['companySize'] != null &&
+                data['companySize'].toString().isNotEmpty) ||
+            (data['industry'] != null &&
+                data['industry'].toString().isNotEmpty) ||
+            (data['businessAddress'] != null &&
+                data['businessAddress'].toString().isNotEmpty)) {
+          await TokenService.setBusinessOnboardingCompleted(
+            cleanEmail,
+            completed: true,
+          );
         }
       }
       final savedAvatar = await TokenService.getUserAvatar(user.email);
-      final loggedInEmail = (await TokenService.getUserEmail() ?? '').trim().toLowerCase();
+      final loggedInEmail = (await TokenService.getUserEmail() ?? '')
+          .trim()
+          .toLowerCase();
       final savedAvatarAlt = await TokenService.getUserAvatar(loggedInEmail);
       final effectiveSavedAvatar = savedAvatar ?? savedAvatarAlt;
 
       String? avatarToUse;
-      if (user.avatarUrl != null && user.avatarUrl!.isNotEmpty && user.avatarUrl != 'null') {
+      if (user.avatarUrl != null &&
+          user.avatarUrl!.isNotEmpty &&
+          user.avatarUrl != 'null') {
         // If local storage has a versioned URL with a cache-buster (?t=...) for this same base URL, preserve it!
         final remoteBase = user.avatarUrl!.split('?').first.trim();
         if (effectiveSavedAvatar != null &&
@@ -113,12 +144,20 @@ class UserRepository {
     Map<String, dynamic> remoteData = {};
 
     try {
-      final res = await ApiClient.get('/api/users/me', tempToken: tempToken, accountEmail: cleanEmail);
+      final res = await ApiClient.get(
+        '/api/users/me',
+        tempToken: tempToken,
+        accountEmail: cleanEmail,
+      );
       final d = (res['data'] as Map<String, dynamic>?) ?? res;
       remoteData.addAll(d);
     } catch (_) {
       try {
-        final res = await ApiClient.get('/api/users/settings', tempToken: tempToken, accountEmail: cleanEmail);
+        final res = await ApiClient.get(
+          '/api/users/settings',
+          tempToken: tempToken,
+          accountEmail: cleanEmail,
+        );
         final d = (res['data'] as Map<String, dynamic>?) ?? res;
         remoteData.addAll(d);
       } catch (_) {}
@@ -126,12 +165,18 @@ class UserRepository {
 
     // Always fetch and merge recovery information (recoveryEmail, phoneNumber)
     try {
-      final rec = await ApiClient.get('/api/users/recovery', tempToken: tempToken, accountEmail: cleanEmail);
+      final rec = await ApiClient.get(
+        '/api/users/recovery',
+        tempToken: tempToken,
+        accountEmail: cleanEmail,
+      );
       final rData = (rec['data'] as Map<String, dynamic>?) ?? rec;
-      if (rData['recoveryEmail'] != null && rData['recoveryEmail'].toString().isNotEmpty) {
+      if (rData['recoveryEmail'] != null &&
+          rData['recoveryEmail'].toString().isNotEmpty) {
         remoteData['recoveryEmail'] = rData['recoveryEmail'].toString();
       }
-      if (rData['phoneNumber'] != null && rData['phoneNumber'].toString().isNotEmpty) {
+      if (rData['phoneNumber'] != null &&
+          rData['phoneNumber'].toString().isNotEmpty) {
         remoteData['phoneNumber'] = rData['phoneNumber'].toString();
         remoteData['phone'] = rData['phoneNumber'].toString();
       }
@@ -159,7 +204,10 @@ class UserRepository {
         : '$cleanEmail@bnxmail.com';
 
     if (await TokenService.isBusinessOnboardingCompleted(altEmail)) {
-      await TokenService.setBusinessOnboardingCompleted(cleanEmail, completed: true);
+      await TokenService.setBusinessOnboardingCompleted(
+        cleanEmail,
+        completed: true,
+      );
       return true;
     }
 
@@ -170,20 +218,34 @@ class UserRepository {
         if (profile['businessOnboarded'] == true ||
             profile['businessOnboardingCompleted'] == true ||
             profile['business_onboarded'] == true) {
-          await TokenService.setBusinessOnboardingCompleted(cleanEmail, completed: true);
-          await TokenService.setBusinessOnboardingCompleted(altEmail, completed: true);
+          await TokenService.setBusinessOnboardingCompleted(
+            cleanEmail,
+            completed: true,
+          );
+          await TokenService.setBusinessOnboardingCompleted(
+            altEmail,
+            completed: true,
+          );
           return true;
         }
         final bType = profile['businessType']?.toString();
         final ind = profile['industry']?.toString();
         final cSize = profile['companySize']?.toString();
-        final bAddr = profile['businessAddress']?.toString() ?? profile['workAddress']?.toString();
+        final bAddr =
+            profile['businessAddress']?.toString() ??
+            profile['workAddress']?.toString();
         if ((bType != null && bType.isNotEmpty) ||
             (ind != null && ind.isNotEmpty) ||
             (cSize != null && cSize.isNotEmpty) ||
             (bAddr != null && bAddr.isNotEmpty)) {
-          await TokenService.setBusinessOnboardingCompleted(cleanEmail, completed: true);
-          await TokenService.setBusinessOnboardingCompleted(altEmail, completed: true);
+          await TokenService.setBusinessOnboardingCompleted(
+            cleanEmail,
+            completed: true,
+          );
+          await TokenService.setBusinessOnboardingCompleted(
+            altEmail,
+            completed: true,
+          );
           return true;
         }
       }
@@ -218,7 +280,10 @@ class UserRepository {
         final data = res['data'];
         if (data is Map<String, dynamic> && cleanEmail.isNotEmpty) {
           final existing = await TokenService.getUserSettings(cleanEmail) ?? {};
-          await TokenService.saveUserSettings(cleanEmail, {...existing, ...data});
+          await TokenService.saveUserSettings(cleanEmail, {
+            ...existing,
+            ...data,
+          });
         }
       } catch (e) {
         print('[PROFILE UPDATE API LOG] $e');
@@ -234,7 +299,9 @@ class UserRepository {
     String? filename,
   }) async {
     final cleanEmail = email.trim().toLowerCase();
-    final loggedInEmail = (await TokenService.getUserEmail())?.trim().toLowerCase();
+    final loggedInEmail = (await TokenService.getUserEmail())
+        ?.trim()
+        .toLowerCase();
 
     try {
       final res = await ApiClient.uploadProfilePicture(
@@ -250,8 +317,11 @@ class UserRepository {
       // "profilePicture": "filename.png",
       // "profilePictureUrl": "/api/users/profile-picture/siva"
       String? serverAvatarUrl = remoteData['profilePictureUrl']?.toString();
-      if (serverAvatarUrl == null || serverAvatarUrl.isEmpty || serverAvatarUrl == 'null') {
-        final pp = remoteData['profilePicture']?.toString() ??
+      if (serverAvatarUrl == null ||
+          serverAvatarUrl.isEmpty ||
+          serverAvatarUrl == 'null') {
+        final pp =
+            remoteData['profilePicture']?.toString() ??
             remoteData['avatarUrl']?.toString() ??
             remoteData['avatar']?.toString() ??
             remoteData['url']?.toString();
@@ -260,13 +330,17 @@ class UserRepository {
             serverAvatarUrl = pp;
           } else {
             // It's a filename or ID, serve via profile picture endpoint
-            final emailForUrl = cleanEmail.isNotEmpty ? cleanEmail : (loggedInEmail ?? '');
+            final emailForUrl = cleanEmail.isNotEmpty
+                ? cleanEmail
+                : (loggedInEmail ?? '');
             serverAvatarUrl = '/api/users/profile-picture/$emailForUrl';
           }
         }
       }
 
-      if (serverAvatarUrl != null && serverAvatarUrl.isNotEmpty && serverAvatarUrl != 'null') {
+      if (serverAvatarUrl != null &&
+          serverAvatarUrl.isNotEmpty &&
+          serverAvatarUrl != 'null') {
         // Append cache-buster timestamp so Flutter NetworkImage and HTTP caches fetch the fresh photo
         final timestamp = DateTime.now().millisecondsSinceEpoch;
         final cleanServerUrl = serverAvatarUrl.split('?').first;
@@ -424,7 +498,10 @@ class UserRepository {
 
   static Future<Map<String, dynamic>?> getRecovery({String? email}) async {
     try {
-      final res = await ApiClient.get('/api/users/recovery', accountEmail: email);
+      final res = await ApiClient.get(
+        '/api/users/recovery',
+        accountEmail: email,
+      );
       return res['data'] as Map<String, dynamic>? ?? res;
     } catch (_) {
       return null;
@@ -450,10 +527,18 @@ class UserRepository {
       });
     }
     try {
-      await ApiClient.patch('/api/users/recovery', body: body, accountEmail: cleanEmail);
+      await ApiClient.patch(
+        '/api/users/recovery',
+        body: body,
+        accountEmail: cleanEmail,
+      );
     } catch (_) {
       try {
-        await ApiClient.put('/api/user/profile', body: body, accountEmail: cleanEmail);
+        await ApiClient.put(
+          '/api/user/profile',
+          body: body,
+          accountEmail: cleanEmail,
+        );
       } catch (_) {}
     }
   }
@@ -583,10 +668,7 @@ class UserRepository {
     try {
       final res = await ApiClient.post(
         '/api/emails/create',
-        body: {
-          'emailName': emailName.trim(),
-          'password': password,
-        },
+        body: {'emailName': emailName.trim(), 'password': password},
       );
       final data = res['data'];
       if (data is Map) {
@@ -647,7 +729,9 @@ class UserRepository {
 
       final normAccountType = accountType.toUpperCase().contains('PERSONAL')
           ? 'PERSONAL'
-          : (accountType.toUpperCase().contains('CHILD') ? 'CHILD' : 'BUSINESS');
+          : (accountType.toUpperCase().contains('CHILD')
+                ? 'CHILD'
+                : 'BUSINESS');
 
       final body = {
         'prefix': prefix.trim(),
@@ -658,7 +742,11 @@ class UserRepository {
         'permissions': intPermissions,
       };
       try {
-        final res = await ApiClient.post('/api/subid/create', body: body, accountEmail: accountEmail);
+        final res = await ApiClient.post(
+          '/api/subid/create',
+          body: body,
+          accountEmail: accountEmail,
+        );
         final data = res['data'];
         if (data is Map) {
           return Map<String, dynamic>.from(data);
@@ -671,7 +759,11 @@ class UserRepository {
           'password': password,
           'accountType': normAccountType,
         };
-        final res = await ApiClient.post('/api/subid/create', body: minimalBody, accountEmail: accountEmail);
+        final res = await ApiClient.post(
+          '/api/subid/create',
+          body: minimalBody,
+          accountEmail: accountEmail,
+        );
         final data = res['data'];
         if (data is Map) {
           return Map<String, dynamic>.from(data);
@@ -716,7 +808,10 @@ class UserRepository {
   static Future<bool> deleteSubId(dynamic id, [String? accountEmail]) async {
     try {
       print('[SUBID DELETE] Calling DELETE endpoint: /api/subid/$id');
-      final res = await ApiClient.delete('/api/subid/$id', accountEmail: accountEmail);
+      final res = await ApiClient.delete(
+        '/api/subid/$id',
+        accountEmail: accountEmail,
+      );
       print('[SUBID DELETE] Response body: $res');
       return res['success'] == true || res['error'] == null;
     } catch (e) {
@@ -729,7 +824,8 @@ class UserRepository {
   static Future<bool> approveChildAccount(dynamic userId) async {
     try {
       final res = await ApiClient.patch('/api/users/$userId/approve');
-      return res['success'] == true || (res['data'] is Map && res['data']['approved'] == true);
+      return res['success'] == true ||
+          (res['data'] is Map && res['data']['approved'] == true);
     } catch (e) {
       print('[APPROVE CHILD ACCOUNT ERROR] $e');
       return false;
@@ -741,7 +837,10 @@ class UserRepository {
   /// Fetches active authenticated login sessions from GET /api/auth/sessions
   static Future<List<Map<String, String>>> getSessions({String? email}) async {
     try {
-      final res = await ApiClient.get('/api/auth/sessions', accountEmail: email);
+      final res = await ApiClient.get(
+        '/api/auth/sessions',
+        accountEmail: email,
+      );
       final list = res['data'] ?? res['sessions'] ?? res;
       if (list is List) {
         return list.map((item) {
@@ -763,7 +862,10 @@ class UserRepository {
           }
 
           final loc = map['location']?.toString();
-          final ip = map['ipAddress']?.toString() ?? map['ip']?.toString() ?? '127.0.0.1';
+          final ip =
+              map['ipAddress']?.toString() ??
+              map['ip']?.toString() ??
+              '127.0.0.1';
           final ipAndLoc = (loc != null && loc.isNotEmpty) ? '$ip — $loc' : ip;
 
           return {
@@ -771,7 +873,10 @@ class UserRepository {
             'title': deviceTitle,
             'ip': ipAndLoc,
             'userAgent': ua,
-            'lastActive': map['createdAt']?.toString() ?? map['lastActive']?.toString() ?? 'Active Now',
+            'lastActive':
+                map['createdAt']?.toString() ??
+                map['lastActive']?.toString() ??
+                'Active Now',
             'currentSession': (map['currentSession'] == true).toString(),
           };
         }).toList();
@@ -785,7 +890,10 @@ class UserRepository {
   /// Revokes an active session via DELETE /api/auth/sessions/{id}
   static Future<bool> revokeSession(String sessionId, {String? email}) async {
     try {
-      final res = await ApiClient.delete('/api/auth/sessions/$sessionId', accountEmail: email);
+      final res = await ApiClient.delete(
+        '/api/auth/sessions/$sessionId',
+        accountEmail: email,
+      );
       return res['success'] == true;
     } catch (e) {
       print('[USER_REPOSITORY] revokeSession error: $e');
@@ -794,9 +902,14 @@ class UserRepository {
   }
 
   /// Fetches recent security and activity logs from GET /api/users/activity-logs
-  static Future<List<Map<String, String>>> getActivityLogs([String? email]) async {
+  static Future<List<Map<String, String>>> getActivityLogs([
+    String? email,
+  ]) async {
     try {
-      final res = await ApiClient.get('/api/users/activity-logs', accountEmail: email);
+      final res = await ApiClient.get(
+        '/api/users/activity-logs',
+        accountEmail: email,
+      );
       final list = res['data'] ?? res['activityLogs'] ?? res;
       if (list is List) {
         return list.map((item) {
