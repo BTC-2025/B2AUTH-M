@@ -990,7 +990,7 @@ class _ManageAccountScreenState extends ConsumerState<ManageAccountScreen> {
   }
 
   /// 5.1 List Connected Mail Accounts (GET /api/emails/list)
-  Future<void> _loadConnectedEmails([String? accountEmail]) async {
+  Future<void> loadConnectedEmails([String? accountEmail]) async {
     if (!mounted) return;
     setState(() => _isLoadingEmails = true);
     try {
@@ -1009,7 +1009,7 @@ class _ManageAccountScreenState extends ConsumerState<ManageAccountScreen> {
   }
 
   /// 5.3 Switch Primary Mailbox (POST /api/emails/{emailId}/set-primary)
-  Future<void> _switchPrimaryEmail(dynamic emailId) async {
+  Future<void> switchPrimaryEmail(dynamic emailId) async {
     setState(() => _isLoadingEmails = true);
     final success = await UserRepository.switchPrimaryMailbox(emailId);
     if (mounted) {
@@ -1021,7 +1021,7 @@ class _ManageAccountScreenState extends ConsumerState<ManageAccountScreen> {
             behavior: SnackBarBehavior.floating,
           ),
         );
-        await _loadConnectedEmails();
+        await loadConnectedEmails();
       } else {
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(
@@ -1036,7 +1036,7 @@ class _ManageAccountScreenState extends ConsumerState<ManageAccountScreen> {
   }
 
   /// 5.2 Create New Mailbox / Alias (POST /api/emails/create)
-  void _openCreateMailboxDialog(bool isDark) {
+  void openCreateMailboxDialog(bool isDark) {
     final nameCtrl = TextEditingController();
     final passCtrl = TextEditingController();
     bool obscure = true;
@@ -1180,7 +1180,7 @@ class _ManageAccountScreenState extends ConsumerState<ManageAccountScreen> {
                                             behavior: SnackBarBehavior.floating,
                                           ),
                                         );
-                                        await _loadConnectedEmails();
+                                        await loadConnectedEmails();
                                       }
                                     } catch (e) {
                                       setDialogState(
@@ -1227,7 +1227,7 @@ class _ManageAccountScreenState extends ConsumerState<ManageAccountScreen> {
   }
 
   /// 5.5 List Sub-ID Accounts (GET /api/subid/list)
-  Future<void> _loadSubIds([String? accountEmail]) async {
+  Future<void> loadSubIds([String? accountEmail]) async {
     if (!mounted) return;
     setState(() => _isLoadingSubIds = true);
     try {
@@ -1253,7 +1253,7 @@ class _ManageAccountScreenState extends ConsumerState<ManageAccountScreen> {
   // ═══════════════════════════════════════════════════════════════════════════
   // PHOTO UPLOAD & REMOVE
   // ═══════════════════════════════════════════════════════════════════════════
-  Future<void> _pickAndUploadPhoto() async {
+  Future<void> pickAndUploadPhoto() async {
     try {
       final result = await FilePicker.platform.pickFiles(
         type: FileType.image,
@@ -1324,7 +1324,7 @@ class _ManageAccountScreenState extends ConsumerState<ManageAccountScreen> {
     }
   }
 
-  Future<void> _removePhoto() async {
+  Future<void> removePhoto() async {
     final activeAccount = ref.read(activeAccountProvider);
     final accountId = activeAccount.email.isNotEmpty
         ? activeAccount.email
@@ -1385,7 +1385,7 @@ class _ManageAccountScreenState extends ConsumerState<ManageAccountScreen> {
   // ═══════════════════════════════════════════════════════════════════════════
   // BUILD ENTRY POINT
   // ═══════════════════════════════════════════════════════════════════════════
-  void _handleBackNavigation() {
+  void handleBackNavigation() {
     if (_homeSubPage != 0) {
       setState(() => _homeSubPage = 0);
     } else if (_selectedTab != 0) {
@@ -1397,7 +1397,7 @@ class _ManageAccountScreenState extends ConsumerState<ManageAccountScreen> {
     }
   }
 
-  void _navigateToStoragePage() {
+  void navigateToStoragePage() {
     final active = ref.read(activeAccountProvider);
     final currentEmail = active.email.isNotEmpty
         ? active.email
@@ -1450,7 +1450,7 @@ class _ManageAccountScreenState extends ConsumerState<ManageAccountScreen> {
               Navigator.of(context).canPop()),
       onPopInvokedWithResult: (didPop, result) {
         if (didPop) return;
-        _handleBackNavigation();
+        handleBackNavigation();
       },
       child: Scaffold(
         backgroundColor: bgColor,
@@ -1458,20 +1458,20 @@ class _ManageAccountScreenState extends ConsumerState<ManageAccountScreen> {
           child: Column(
             children: [
               // Top Google Account Style Bar (Exact match to screenshots)
-              _buildTopAppBar(account, isDark, isMobile),
+              buildTopAppBar(account, isDark, isMobile),
 
               // Mobile Horizontal Tab Bar (For responsive screens)
-              if (isMobile) _buildMobileTabBar(isDark),
+              if (isMobile) buildMobileTabBar(isDark),
 
               // Content Area (Split Sidebar + Body on Desktop)
               Expanded(
                 child: isMobile
-                    ? _buildScrollableContent(account, isDark, isMobile)
+                    ? buildScrollableContent(account, isDark, isMobile)
                     : Row(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
                           // Left Sidebar
-                          _buildDesktopSidebar(isDark),
+                          buildDesktopSidebar(isDark),
 
                           // Vertical Divider
                           VerticalDivider(
@@ -1484,7 +1484,7 @@ class _ManageAccountScreenState extends ConsumerState<ManageAccountScreen> {
 
                           // Main Scrollable Area
                           Expanded(
-                            child: _buildScrollableContent(
+                            child: buildScrollableContent(
                               account,
                               isDark,
                               isMobile,
@@ -1503,7 +1503,7 @@ class _ManageAccountScreenState extends ConsumerState<ManageAccountScreen> {
   // ═══════════════════════════════════════════════════════════════════════════
   // TOP BAR (Screenshots 1-5: [B BETA] Account  ...  (?) [:::] [Avatar Ravi v])
   // ═══════════════════════════════════════════════════════════════════════════
-  Widget _buildTopAppBar(AccountModel account, bool isDark, bool isMobile) {
+  Widget buildTopAppBar(AccountModel account, bool isDark, bool isMobile) {
     final displayName = account.name.isNotEmpty
         ? account.name
         : (_displayName != 'Not set' && _displayName.isNotEmpty
@@ -1540,14 +1540,14 @@ class _ManageAccountScreenState extends ConsumerState<ManageAccountScreen> {
               padding: EdgeInsets.zero,
               constraints: const BoxConstraints(minWidth: 36, minHeight: 36),
               tooltip: 'Back',
-              onPressed: _handleBackNavigation,
+              onPressed: handleBackNavigation,
             ),
             const SizedBox(width: 4),
           ],
 
           // Logo (B Beta) + "Account" title
           InkWell(
-            onTap: _handleBackNavigation,
+            onTap: handleBackNavigation,
             borderRadius: BorderRadius.circular(8),
             child: Padding(
               padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 4),
@@ -1612,13 +1612,13 @@ class _ManageAccountScreenState extends ConsumerState<ManageAccountScreen> {
           ],
 
           // User Profile Dropdown Pill
-          _buildUserProfilePill(account, displayName, isDark, isMobile),
+          buildUserProfilePill(account, displayName, isDark, isMobile),
         ],
       ),
     );
   }
 
-  Widget _buildUserProfilePill(
+  Widget buildUserProfilePill(
     AccountModel account,
     String displayName,
     bool isDark,
@@ -1641,7 +1641,7 @@ class _ManageAccountScreenState extends ConsumerState<ManageAccountScreen> {
       onSelected: (value) {
         setState(() => _isProfileMenuOpen = false);
         if (value == 'sign_out') {
-          _handleSignOut();
+          handleSignOut();
         } else if (value == 'add_account') {
           if (widget.onAddAccount != null) {
             widget.onAddAccount!();
@@ -1745,7 +1745,7 @@ class _ManageAccountScreenState extends ConsumerState<ManageAccountScreen> {
                 InkWell(
                   onTap: () {
                     Navigator.pop(context);
-                    _handleSignOut();
+                    handleSignOut();
                   },
                   borderRadius: BorderRadius.circular(8),
                   child: Padding(
@@ -1833,7 +1833,7 @@ class _ManageAccountScreenState extends ConsumerState<ManageAccountScreen> {
   // ═══════════════════════════════════════════════════════════════════════════
   // DESKTOP LEFT SIDEBAR (Exact match to Screenshots 1-5)
   // ═══════════════════════════════════════════════════════════════════════════
-  Widget _buildDesktopSidebar(bool isDark) {
+  Widget buildDesktopSidebar(bool isDark) {
     return Container(
       width: 250,
       color: isDark ? const Color(0xFF1E2022) : Colors.white,
@@ -1851,7 +1851,7 @@ class _ManageAccountScreenState extends ConsumerState<ManageAccountScreen> {
               child: InkWell(
                 onTap: () {
                   if (index == 4) {
-                    _navigateToStoragePage();
+                    navigateToStoragePage();
                     return;
                   }
                   setState(() {
@@ -1917,7 +1917,7 @@ class _ManageAccountScreenState extends ConsumerState<ManageAccountScreen> {
 
           // Bottom Sign out button (Exact match to Screenshots)
           InkWell(
-            onTap: _handleSignOut,
+            onTap: handleSignOut,
             borderRadius: BorderRadius.circular(24),
             child: Container(
               height: 44,
@@ -1950,7 +1950,7 @@ class _ManageAccountScreenState extends ConsumerState<ManageAccountScreen> {
   // ═══════════════════════════════════════════════════════════════════════════
   // MOBILE TAB BAR
   // ═══════════════════════════════════════════════════════════════════════════
-  Widget _buildMobileTabBar(bool isDark) {
+  Widget buildMobileTabBar(bool isDark) {
     return Container(
       height: 52,
       decoration: BoxDecoration(
@@ -1976,7 +1976,7 @@ class _ManageAccountScreenState extends ConsumerState<ManageAccountScreen> {
             child: InkWell(
               onTap: () {
                 if (index == 4) {
-                  _navigateToStoragePage();
+                  navigateToStoragePage();
                   return;
                 }
                 setState(() {
@@ -2040,7 +2040,7 @@ class _ManageAccountScreenState extends ConsumerState<ManageAccountScreen> {
   // ═══════════════════════════════════════════════════════════════════════════
   // MAIN SCROLLABLE CONTENT (Zero overflow on all OSs & screens)
   // ═══════════════════════════════════════════════════════════════════════════
-  Widget _buildScrollableContent(
+  Widget buildScrollableContent(
     AccountModel account,
     bool isDark,
     bool isMobile,
@@ -2058,51 +2058,51 @@ class _ManageAccountScreenState extends ConsumerState<ManageAccountScreen> {
       child: Center(
         child: ConstrainedBox(
           constraints: const BoxConstraints(maxWidth: 960),
-          child: _buildActiveTabContent(account, isDark, isMobile),
+          child: buildActiveTabContent(account, isDark, isMobile),
         ),
       ),
     );
   }
 
-  Widget _buildActiveTabContent(
+  Widget buildActiveTabContent(
     AccountModel account,
     bool isDark,
     bool isMobile,
   ) {
     switch (_selectedTab) {
       case 0:
-        return _buildHomeTab(account, isDark, isMobile);
+        return buildHomeTab(account, isDark, isMobile);
       case 1:
-        return _buildPersonalInfoTab(account, isDark, isMobile);
+        return buildPersonalInfoTab(account, isDark, isMobile);
       case 2:
-        return _buildPaymentAndSubscriptionTab(account, isDark, isMobile);
+        return buildPaymentAndSubscriptionTab(account, isDark, isMobile);
       case 3:
-        return _buildTeamAndSubIdsTab(account, isDark, isMobile);
+        return buildTeamAndSubIdsTab(account, isDark, isMobile);
       case 4:
-        return _buildAccountStorageTab(account, isDark, isMobile);
+        return buildAccountStorageTab(account, isDark, isMobile);
       case 5:
-        return _buildB2AuthTab(account, isDark, isMobile);
+        return buildB2AuthTab(account, isDark, isMobile);
       default:
-        return _buildHomeTab(account, isDark, isMobile);
+        return buildHomeTab(account, isDark, isMobile);
     }
   }
 
   // ═══════════════════════════════════════════════════════════════════════════
   // 1. HOME TAB (Screenshots 1 & 2)
   // ═══════════════════════════════════════════════════════════════════════════
-  Widget _buildHomeTab(AccountModel account, bool isDark, bool isMobile) {
+  Widget buildHomeTab(AccountModel account, bool isDark, bool isMobile) {
     if (_homeSubPage == 1) {
-      return _buildEmailIdentitiesView(account, isDark, isMobile);
+      return buildEmailIdentitiesView(account, isDark, isMobile);
     } else if (_homeSubPage == 2) {
-      return _buildDataAndPrivacyView(account, isDark, isMobile);
+      return buildDataAndPrivacyView(account, isDark, isMobile);
     } else if (_homeSubPage == 3) {
-      return _buildSigningInToBnxView(account, isDark, isMobile);
+      return buildSigningInToBnxView(account, isDark, isMobile);
     }
 
     final emailAddress = account.email;
 
     // Card 1: Emails & Identities -> Navigates to Screenshot 1 ("Your Email Identities")
-    final card1 = _buildHomeCard(
+    final card1 = buildHomeCard(
       isDark: isDark,
       icon: Icons.mail_outline_rounded,
       title: 'Emails & Identities',
@@ -2143,7 +2143,7 @@ class _ManageAccountScreenState extends ConsumerState<ManageAccountScreen> {
     );
 
     // Card 2: Privacy & personalization -> Navigates to Screenshot 2 ("Data & privacy")
-    final card2 = _buildHomeCard(
+    final card2 = buildHomeCard(
       isDark: isDark,
       icon: Icons.shield_outlined,
       title: 'Privacy & personalization',
@@ -2155,7 +2155,7 @@ class _ManageAccountScreenState extends ConsumerState<ManageAccountScreen> {
     );
 
     // Card 3: Account & Security -> Navigates to Screenshot 3 ("Signing in to BNX")
-    final card3 = _buildHomeCard(
+    final card3 = buildHomeCard(
       isDark: isDark,
       icon: Icons.verified_user_outlined,
       title: 'Account & Security',
@@ -2192,7 +2192,7 @@ class _ManageAccountScreenState extends ConsumerState<ManageAccountScreen> {
     );
 
     // Card 4: Account storage -> Navigates to "Account storage" tab (Storage page)
-    final card4 = _buildHomeCard(
+    final card4 = buildHomeCard(
       isDark: isDark,
       icon: Icons.inventory_2_outlined,
       title: 'Account storage',
@@ -2236,13 +2236,13 @@ class _ManageAccountScreenState extends ConsumerState<ManageAccountScreen> {
         },
       ),
       actionLabel: 'Manage storage',
-      onAction: _navigateToStoragePage,
+      onAction: navigateToStoragePage,
     );
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.center,
       children: [
-        _buildHomeHeader(account, isDark, showBackButton: false),
+        buildHomeHeader(account, isDark, showBackButton: false),
 
         // 2x2 Grid of Cards (or 1-column on mobile)
         if (isMobile) ...[
@@ -2280,7 +2280,7 @@ class _ManageAccountScreenState extends ConsumerState<ManageAccountScreen> {
   // ─────────────────────────────────────────────────────────────────────────
   // Shared Home Header (Avatar + Welcome Text)
   // ─────────────────────────────────────────────────────────────────────────
-  Widget _buildHomeHeader(
+  Widget buildHomeHeader(
     AccountModel account,
     bool isDark, {
     bool showBackButton = false,
@@ -2391,7 +2391,7 @@ class _ManageAccountScreenState extends ConsumerState<ManageAccountScreen> {
   // ─────────────────────────────────────────────────────────────────────────
   // SUBPAGE 1: Your Email Identities (Section 5.1, 5.2, 5.3 API Integrated)
   // ─────────────────────────────────────────────────────────────────────────
-  Widget _buildEmailIdentitiesView(
+  Widget buildEmailIdentitiesView(
     AccountModel account,
     bool isDark,
     bool isMobile,
@@ -2401,7 +2401,7 @@ class _ManageAccountScreenState extends ConsumerState<ManageAccountScreen> {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.center,
       children: [
-        _buildHomeHeader(account, isDark, showBackButton: true),
+        buildHomeHeader(account, isDark, showBackButton: true),
 
         Center(
           child: Container(
@@ -2448,7 +2448,7 @@ class _ManageAccountScreenState extends ConsumerState<ManageAccountScreen> {
                       ),
                       const SizedBox(height: 12),
                       FilledButton.icon(
-                        onPressed: () => _openCreateMailboxDialog(isDark),
+                        onPressed: () => openCreateMailboxDialog(isDark),
                         icon: const Icon(Icons.add, size: 16),
                         label: const Text(
                           'Add Mailbox',
@@ -2506,7 +2506,7 @@ class _ManageAccountScreenState extends ConsumerState<ManageAccountScreen> {
                       ),
                       const SizedBox(width: 12),
                       FilledButton.icon(
-                        onPressed: () => _openCreateMailboxDialog(isDark),
+                        onPressed: () => openCreateMailboxDialog(isDark),
                         icon: const Icon(Icons.add, size: 16),
                         label: const Text(
                           'Add Mailbox',
@@ -2727,7 +2727,7 @@ class _ManageAccountScreenState extends ConsumerState<ManageAccountScreen> {
                                     ),
                                   OutlinedButton(
                                     onPressed: emailId != null
-                                        ? () => _switchPrimaryEmail(emailId)
+                                        ? () => switchPrimaryEmail(emailId)
                                         : null,
                                     style: OutlinedButton.styleFrom(
                                       foregroundColor: const Color(0xFF1A73E8),
@@ -2907,7 +2907,7 @@ class _ManageAccountScreenState extends ConsumerState<ManageAccountScreen> {
   // ─────────────────────────────────────────────────────────────────────────
   // SUBPAGE 2: Data & privacy (Exact match to Screenshot 2)
   // ─────────────────────────────────────────────────────────────────────────
-  Widget _buildDataAndPrivacyView(
+  Widget buildDataAndPrivacyView(
     AccountModel account,
     bool isDark,
     bool isMobile,
@@ -2915,7 +2915,7 @@ class _ManageAccountScreenState extends ConsumerState<ManageAccountScreen> {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.center,
       children: [
-        _buildHomeHeader(account, isDark, showBackButton: true),
+        buildHomeHeader(account, isDark, showBackButton: true),
 
         Center(
           child: Container(
@@ -3126,7 +3126,7 @@ class _ManageAccountScreenState extends ConsumerState<ManageAccountScreen> {
   // ─────────────────────────────────────────────────────────────────────────
   // SUBPAGE 3: Signing in to BNX (Exact match to Screenshot 3)
   // ─────────────────────────────────────────────────────────────────────────
-  Widget _buildSigningInToBnxView(
+  Widget buildSigningInToBnxView(
     AccountModel account,
     bool isDark,
     bool isMobile,
@@ -3134,7 +3134,7 @@ class _ManageAccountScreenState extends ConsumerState<ManageAccountScreen> {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.center,
       children: [
-        _buildHomeHeader(account, isDark, showBackButton: true),
+        buildHomeHeader(account, isDark, showBackButton: true),
 
         Center(
           child: Container(
@@ -3431,7 +3431,7 @@ class _ManageAccountScreenState extends ConsumerState<ManageAccountScreen> {
     );
   }
 
-  Widget _buildHomeCard({
+  Widget buildHomeCard({
     required bool isDark,
     required IconData icon,
     required String title,
@@ -3518,7 +3518,7 @@ class _ManageAccountScreenState extends ConsumerState<ManageAccountScreen> {
   // ═══════════════════════════════════════════════════════════════════════════
   // 2. PERSONAL INFO TAB (Screenshots 3, 4, 5)
   // ═══════════════════════════════════════════════════════════════════════════
-  Widget _buildPersonalInfoTab(
+  Widget buildPersonalInfoTab(
     AccountModel account,
     bool isDark,
     bool isMobile,
@@ -3597,14 +3597,14 @@ class _ManageAccountScreenState extends ConsumerState<ManageAccountScreen> {
         const SizedBox(height: 28),
 
         // CARD 1: Basic info (Screenshot 3)
-        _buildInfoCard(
+        buildInfoCard(
           isDark: isDark,
           title: 'Basic info',
           subtitle:
               'Some info may be visible to other people using BNX services. Click any row to update.',
           children: [
             // PHOTO ROW (Exact match to Screenshot 3)
-            _buildPhotoRow(account, displayName, isDark),
+            buildPhotoRow(account, displayName, isDark),
 
             // NAME ROW
             _SettingRow(
@@ -3612,7 +3612,7 @@ class _ManageAccountScreenState extends ConsumerState<ManageAccountScreen> {
               icon: Icons.person_outline_rounded,
               label: 'NAME',
               value: displayName,
-              onTap: () => _editFullName(account),
+              onTap: () => editFullName(account),
             ),
 
             // NICKNAME ROW
@@ -3623,7 +3623,7 @@ class _ManageAccountScreenState extends ConsumerState<ManageAccountScreen> {
               value: (account.nickname != null && account.nickname!.isNotEmpty)
                   ? account.nickname!
                   : _nickname,
-              onTap: () => _editNickname(account),
+              onTap: () => editNickname(account),
             ),
 
             // DISPLAY NAME ROW
@@ -3634,7 +3634,7 @@ class _ManageAccountScreenState extends ConsumerState<ManageAccountScreen> {
               value: (account.displayName != null && account.displayName!.isNotEmpty)
                   ? account.displayName!
                   : _displayName,
-              onTap: () => _editDisplayName(account),
+              onTap: () => editDisplayName(account),
             ),
 
             // BIRTHDAY ROW
@@ -3643,7 +3643,7 @@ class _ManageAccountScreenState extends ConsumerState<ManageAccountScreen> {
               icon: Icons.calendar_today_outlined,
               label: 'BIRTHDAY',
               value: dobText,
-              onTap: () => _selectBirthday(account),
+              onTap: () => selectBirthday(account),
             ),
 
             // GENDER ROW
@@ -3654,7 +3654,7 @@ class _ManageAccountScreenState extends ConsumerState<ManageAccountScreen> {
               value: (account.gender != null && account.gender!.isNotEmpty)
                   ? account.gender!
                   : _gender,
-              onTap: () => _selectGender(account),
+              onTap: () => selectGender(account),
               showDivider: false,
             ),
           ],
@@ -3662,7 +3662,7 @@ class _ManageAccountScreenState extends ConsumerState<ManageAccountScreen> {
         const SizedBox(height: 24),
 
         // CARD 2: Contact info (Screenshot 4)
-        _buildInfoCard(
+        buildInfoCard(
           isDark: isDark,
           title: 'Contact info',
           subtitle:
@@ -3718,7 +3718,7 @@ class _ManageAccountScreenState extends ConsumerState<ManageAccountScreen> {
               icon: Icons.mail_outline_rounded,
               label: 'RECOVERY EMAIL',
               value: recoveryEmail,
-              onTap: () => _editRecoveryEmail(account),
+              onTap: () => editRecoveryEmail(account),
             ),
 
             // PHONE NUMBER
@@ -3727,7 +3727,7 @@ class _ManageAccountScreenState extends ConsumerState<ManageAccountScreen> {
               icon: Icons.phone_outlined,
               label: 'PHONE NUMBER',
               value: phone,
-              onTap: () => _editPhone(account),
+              onTap: () => editPhone(account),
               showDivider: false,
             ),
           ],
@@ -3735,7 +3735,7 @@ class _ManageAccountScreenState extends ConsumerState<ManageAccountScreen> {
         const SizedBox(height: 24),
 
         // CARD 3: Addresses (Screenshots 4 & 5)
-        _buildInfoCard(
+        buildInfoCard(
           isDark: isDark,
           title: 'Addresses',
           subtitle:
@@ -3749,7 +3749,7 @@ class _ManageAccountScreenState extends ConsumerState<ManageAccountScreen> {
               value: (account.homeAddress != null && account.homeAddress!.isNotEmpty)
                   ? account.homeAddress!
                   : _homeAddress,
-              onTap: () => _editAddress(true, account),
+              onTap: () => editAddress(true, account),
             ),
 
             // WORK ADDRESS
@@ -3760,7 +3760,7 @@ class _ManageAccountScreenState extends ConsumerState<ManageAccountScreen> {
               value: (account.workAddress != null && account.workAddress!.isNotEmpty)
                   ? account.workAddress!
                   : _workAddress,
-              onTap: () => _editAddress(false, account),
+              onTap: () => editAddress(false, account),
               showDivider: false,
             ),
           ],
@@ -3768,7 +3768,7 @@ class _ManageAccountScreenState extends ConsumerState<ManageAccountScreen> {
         const SizedBox(height: 24),
 
         // CARD 4: About me (Screenshot 5)
-        _buildInfoCard(
+        buildInfoCard(
           isDark: isDark,
           title: 'About me',
           subtitle: 'Your profile description and occupation. Click to edit.',
@@ -3781,7 +3781,7 @@ class _ManageAccountScreenState extends ConsumerState<ManageAccountScreen> {
               value: (account.occupation != null && account.occupation!.isNotEmpty)
                   ? account.occupation!
                   : _occupation,
-              onTap: () => _editOccupation(account),
+              onTap: () => editOccupation(account),
             ),
 
             // BIO
@@ -3792,7 +3792,7 @@ class _ManageAccountScreenState extends ConsumerState<ManageAccountScreen> {
               value: (account.bio != null && account.bio!.isNotEmpty)
                   ? account.bio!
                   : _bio,
-              onTap: () => _editBio(account),
+              onTap: () => editBio(account),
               showDivider: false,
             ),
           ],
@@ -3806,7 +3806,7 @@ class _ManageAccountScreenState extends ConsumerState<ManageAccountScreen> {
   // PHOTO ROW (Exact match to Screenshot 3)
   // Left: Camera circle | Column: "PHOTO" -> Row with [Avatar, CHANGE PHOTO, Remove]
   // ═══════════════════════════════════════════════════════════════════════════
-  Widget _buildPhotoRow(AccountModel account, String displayName, bool isDark) {
+  Widget buildPhotoRow(AccountModel account, String displayName, bool isDark) {
     return Column(
       children: [
         Padding(
@@ -3863,7 +3863,7 @@ class _ManageAccountScreenState extends ConsumerState<ManageAccountScreen> {
                           fontSize: 18,
                         ),
                         OutlinedButton(
-                          onPressed: _isLoading ? null : _pickAndUploadPhoto,
+                          onPressed: _isLoading ? null : pickAndUploadPhoto,
                           style: OutlinedButton.styleFrom(
                             foregroundColor: isDark
                                 ? Colors.white70
@@ -3904,7 +3904,7 @@ class _ManageAccountScreenState extends ConsumerState<ManageAccountScreen> {
                         if (account.avatarUrl != null &&
                             account.avatarUrl!.isNotEmpty)
                           OutlinedButton(
-                            onPressed: _isLoading ? null : _removePhoto,
+                            onPressed: _isLoading ? null : removePhoto,
                             style: OutlinedButton.styleFrom(
                               foregroundColor: const Color(0xFFD93025),
                               side: const BorderSide(color: Color(0xFFF28B82)),
@@ -3943,7 +3943,7 @@ class _ManageAccountScreenState extends ConsumerState<ManageAccountScreen> {
   // ═══════════════════════════════════════════════════════════════════════════
   // CARD CONTAINER
   // ═══════════════════════════════════════════════════════════════════════════
-  Widget _buildInfoCard({
+  Widget buildInfoCard({
     required bool isDark,
     required String title,
     required String subtitle,
@@ -3987,7 +3987,7 @@ class _ManageAccountScreenState extends ConsumerState<ManageAccountScreen> {
   // ═══════════════════════════════════════════════════════════════════════════
   // 3. PAYMENT & SUBSCRIPTION TAB (Image 1: Cliks Business Subscription)
   // ═══════════════════════════════════════════════════════════════════════════
-  Widget _buildPaymentAndSubscriptionTab(
+  Widget buildPaymentAndSubscriptionTab(
     AccountModel account,
     bool isDark,
     bool isMobile,
@@ -4229,14 +4229,14 @@ class _ManageAccountScreenState extends ConsumerState<ManageAccountScreen> {
                           ? Column(
                               crossAxisAlignment: CrossAxisAlignment.start,
                               children: [
-                                _buildSubDetailItem(
+                                buildSubDetailItem(
                                   icon: Icons.calendar_today_outlined,
                                   label: 'SUBSCRIBED ON',
                                   value: subscribedDate,
                                   isDark: isDark,
                                 ),
                                 const SizedBox(height: 16),
-                                _buildSubDetailItem(
+                                buildSubDetailItem(
                                   icon: Icons.access_time_rounded,
                                   label: 'NEXT DUE DATE',
                                   value: nextDueDate,
@@ -4244,7 +4244,7 @@ class _ManageAccountScreenState extends ConsumerState<ManageAccountScreen> {
                                   isDark: isDark,
                                 ),
                                 const SizedBox(height: 16),
-                                _buildSubDetailItem(
+                                buildSubDetailItem(
                                   label: 'BILLED TO',
                                   value: billedEmail,
                                   isDark: isDark,
@@ -4254,7 +4254,7 @@ class _ManageAccountScreenState extends ConsumerState<ManageAccountScreen> {
                           : Row(
                               children: [
                                 Expanded(
-                                  child: _buildSubDetailItem(
+                                  child: buildSubDetailItem(
                                     icon: Icons.calendar_today_outlined,
                                     label: 'SUBSCRIBED ON',
                                     value: subscribedDate,
@@ -4262,7 +4262,7 @@ class _ManageAccountScreenState extends ConsumerState<ManageAccountScreen> {
                                   ),
                                 ),
                                 Expanded(
-                                  child: _buildSubDetailItem(
+                                  child: buildSubDetailItem(
                                     icon: Icons.access_time_rounded,
                                     label: 'NEXT DUE DATE',
                                     value: nextDueDate,
@@ -4271,7 +4271,7 @@ class _ManageAccountScreenState extends ConsumerState<ManageAccountScreen> {
                                   ),
                                 ),
                                 Expanded(
-                                  child: _buildSubDetailItem(
+                                  child: buildSubDetailItem(
                                     label: 'BILLED TO',
                                     value: billedEmail,
                                     isDark: isDark,
@@ -4364,7 +4364,7 @@ class _ManageAccountScreenState extends ConsumerState<ManageAccountScreen> {
     );
   }
 
-  Widget _buildSubDetailItem({
+  Widget buildSubDetailItem({
     IconData? icon,
     required String label,
     required String value,
@@ -4427,7 +4427,7 @@ class _ManageAccountScreenState extends ConsumerState<ManageAccountScreen> {
   // ═══════════════════════════════════════════════════════════════════════════
   // 4. TEAM & SUB-IDS TAB (Image 2: Table + "+ Create Sub-ID" button)
   // ═══════════════════════════════════════════════════════════════════════════
-  Widget _buildTeamAndSubIdsTab(
+  Widget buildTeamAndSubIdsTab(
     AccountModel account,
     bool isDark,
     bool isMobile,
@@ -4491,7 +4491,7 @@ class _ManageAccountScreenState extends ConsumerState<ManageAccountScreen> {
               ),
               const SizedBox(height: 12),
               FilledButton.icon(
-                onPressed: () => _openCreateSubIdDialog(account, isDark),
+                onPressed: () => openCreateSubIdDialog(account, isDark),
                 icon: const Icon(Icons.add, size: 18),
                 label: const Text(
                   'Create Sub-ID',
@@ -4538,7 +4538,7 @@ class _ManageAccountScreenState extends ConsumerState<ManageAccountScreen> {
                 ],
               ),
               FilledButton.icon(
-                onPressed: () => _openCreateSubIdDialog(account, isDark),
+                onPressed: () => openCreateSubIdDialog(account, isDark),
                 icon: const Icon(Icons.add, size: 18),
                 label: const Text(
                   'Create Sub-ID',
@@ -4794,7 +4794,7 @@ class _ManageAccountScreenState extends ConsumerState<ManageAccountScreen> {
                                     color: Color(0xFF5F6368),
                                   ),
                                   tooltip: 'Delete Sub-ID',
-                                  onPressed: () => _confirmDeleteSubId(item),
+                                  onPressed: () => confirmDeleteSubId(item),
                                 ),
                               ),
                             ),
@@ -4819,14 +4819,14 @@ class _ManageAccountScreenState extends ConsumerState<ManageAccountScreen> {
     );
   }
 
-  void _openCreateSubIdDialog(AccountModel account, bool isDark) {
+  void openCreateSubIdDialog(AccountModel account, bool isDark) {
     showDialog(
       context: context,
       builder: (ctx) => _CreateSubIdDialog(
         account: account,
         isDark: isDark,
         onCreated: (newSubId) {
-          _loadSubIds(account.email);
+          loadSubIds(account.email);
           ScaffoldMessenger.of(context).showSnackBar(
             SnackBar(
               content: Text(
@@ -4841,7 +4841,7 @@ class _ManageAccountScreenState extends ConsumerState<ManageAccountScreen> {
     );
   }
 
-  void _confirmDeleteSubId(Map<String, dynamic> item) async {
+  void confirmDeleteSubId(Map<String, dynamic> item) async {
     final rawId = item['id'];
     final id = rawId is int ? rawId : int.tryParse(rawId?.toString() ?? '');
     final username =
@@ -4900,7 +4900,7 @@ class _ManageAccountScreenState extends ConsumerState<ManageAccountScreen> {
             ),
           );
           print('[SUBID DELETE] Refreshing Sub-ID list:');
-          await _loadSubIds(email);
+          await loadSubIds(email);
         }
       } catch (e) {
         print('[SUBID DELETE ERROR] $e');
@@ -4921,7 +4921,7 @@ class _ManageAccountScreenState extends ConsumerState<ManageAccountScreen> {
   // ═══════════════════════════════════════════════════════════════════════════
   // 5. ACCOUNT STORAGE TAB
   // ═══════════════════════════════════════════════════════════════════════════
-  Widget _buildAccountStorageTab(
+  Widget buildAccountStorageTab(
     AccountModel account,
     bool isDark,
     bool isMobile,
@@ -4938,7 +4938,7 @@ class _ManageAccountScreenState extends ConsumerState<ManageAccountScreen> {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        _buildInfoCard(
+        buildInfoCard(
           isDark: isDark,
           title: 'Account storage',
           subtitle:
@@ -5024,7 +5024,7 @@ class _ManageAccountScreenState extends ConsumerState<ManageAccountScreen> {
             ),
             const SizedBox(height: 20),
             ElevatedButton.icon(
-              onPressed: _navigateToStoragePage,
+              onPressed: navigateToStoragePage,
               icon: const Icon(Icons.storage_rounded, size: 18),
               label: const Text('Open Storage Manager'),
               style: ElevatedButton.styleFrom(
@@ -5049,14 +5049,14 @@ class _ManageAccountScreenState extends ConsumerState<ManageAccountScreen> {
   // ═══════════════════════════════════════════════════════════════════════════
   // 6. B2AUTH TAB
   // ═══════════════════════════════════════════════════════════════════════════
-  Widget _buildB2AuthTab(AccountModel account, bool isDark, bool isMobile) {
+  Widget buildB2AuthTab(AccountModel account, bool isDark, bool isMobile) {
     final is2Fa =
         ref.watch(settingsProvider).settings?.twoFactorEnabled ?? false;
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        _buildInfoCard(
+        buildInfoCard(
           isDark: isDark,
           title: 'Account & Security',
           subtitle: 'Security checkup and recommendations for your account.',
@@ -5125,7 +5125,7 @@ class _ManageAccountScreenState extends ConsumerState<ManageAccountScreen> {
         ),
         const SizedBox(height: 24),
 
-        _buildInfoCard(
+        buildInfoCard(
           isDark: isDark,
           title: 'Active Sessions & Devices',
           subtitle: 'Devices that are currently signed in to your BNX account.',
@@ -5227,7 +5227,7 @@ class _ManageAccountScreenState extends ConsumerState<ManageAccountScreen> {
         ),
         const SizedBox(height: 24),
 
-        _buildInfoCard(
+        buildInfoCard(
           isDark: isDark,
           title: 'Security & Login Activity',
           subtitle:
@@ -5330,7 +5330,7 @@ class _ManageAccountScreenState extends ConsumerState<ManageAccountScreen> {
   // ═══════════════════════════════════════════════════════════════════════════
   // DIALOGS & ACTION HANDLERS (Safe frontend data updates)
   // ═══════════════════════════════════════════════════════════════════════════
-  void _editFullName(AccountModel account) {
+  void editFullName(AccountModel account) {
     final controller = TextEditingController(text: account.name);
     showDialog(
       context: context,
@@ -5375,7 +5375,7 @@ class _ManageAccountScreenState extends ConsumerState<ManageAccountScreen> {
     );
   }
 
-  void _editNickname([AccountModel? account]) {
+  void editNickname([AccountModel? account]) {
     final active = ref.read(activeAccountProvider);
     final targetAccount = account ?? active;
     final targetEmail = targetAccount.email.isNotEmpty ? targetAccount.email : active.email;
@@ -5422,7 +5422,7 @@ class _ManageAccountScreenState extends ConsumerState<ManageAccountScreen> {
     );
   }
 
-  void _editDisplayName([AccountModel? account]) {
+  void editDisplayName([AccountModel? account]) {
     final active = ref.read(activeAccountProvider);
     final targetAccount = account ?? active;
     final targetEmail = targetAccount.email.isNotEmpty ? targetAccount.email : active.email;
@@ -5469,7 +5469,7 @@ class _ManageAccountScreenState extends ConsumerState<ManageAccountScreen> {
     );
   }
 
-  void _selectBirthday(AccountModel account) async {
+  void selectBirthday(AccountModel account) async {
     final initialDate = account.dob ?? DateTime(2000, 1, 1);
     final picked = await showDatePicker(
       context: context,
@@ -5488,7 +5488,7 @@ class _ManageAccountScreenState extends ConsumerState<ManageAccountScreen> {
     }
   }
 
-  void _selectGender([AccountModel? account]) {
+  void selectGender([AccountModel? account]) {
     final active = ref.read(activeAccountProvider);
     final targetAccount = account ?? active;
     final targetEmail = targetAccount.email.isNotEmpty ? targetAccount.email : active.email;
@@ -5517,7 +5517,7 @@ class _ManageAccountScreenState extends ConsumerState<ManageAccountScreen> {
     );
   }
 
-  void _editRecoveryEmail(AccountModel account) {
+  void editRecoveryEmail(AccountModel account) {
     final controller = TextEditingController(
       text: _recoveryEmail ?? account.recoveryEmail ?? '',
     );
@@ -5563,7 +5563,7 @@ class _ManageAccountScreenState extends ConsumerState<ManageAccountScreen> {
     );
   }
 
-  void _editPhone(AccountModel account) {
+  void editPhone(AccountModel account) {
     final controller = TextEditingController(
       text: _phone ?? account.phone ?? '',
     );
@@ -5610,7 +5610,7 @@ class _ManageAccountScreenState extends ConsumerState<ManageAccountScreen> {
     );
   }
 
-  void _editAddress(bool isHome, [AccountModel? account]) {
+  void editAddress(bool isHome, [AccountModel? account]) {
     final active = ref.read(activeAccountProvider);
     final targetAccount = account ?? active;
     final targetEmail = targetAccount.email.isNotEmpty ? targetAccount.email : active.email;
@@ -5663,7 +5663,7 @@ class _ManageAccountScreenState extends ConsumerState<ManageAccountScreen> {
     );
   }
 
-  void _editOccupation([AccountModel? account]) {
+  void editOccupation([AccountModel? account]) {
     final active = ref.read(activeAccountProvider);
     final targetAccount = account ?? active;
     final targetEmail = targetAccount.email.isNotEmpty ? targetAccount.email : active.email;
@@ -5710,7 +5710,7 @@ class _ManageAccountScreenState extends ConsumerState<ManageAccountScreen> {
     );
   }
 
-  void _editBio([AccountModel? account]) {
+  void editBio([AccountModel? account]) {
     final active = ref.read(activeAccountProvider);
     final targetAccount = account ?? active;
     final targetEmail = targetAccount.email.isNotEmpty ? targetAccount.email : active.email;
@@ -5760,7 +5760,7 @@ class _ManageAccountScreenState extends ConsumerState<ManageAccountScreen> {
     );
   }
 
-  Future<void> _handleSignOut() async {
+  Future<void> handleSignOut() async {
     final confirm = await showDialog<bool>(
       context: context,
       builder: (ctx) => AlertDialog(
@@ -5803,7 +5803,7 @@ class _ManageAccountScreenState extends ConsumerState<ManageAccountScreen> {
 // INTERACTIVE SETTING ROW WITH HOVER SUPPORT (Screenshots 3, 4, 5)
 // In Screenshot 5: Hover turns circle badge solid blue with white icon & blue chevron
 // ═════════════════════════════════════════════════════════════════════════════
-class _SettingRow extends StatefulWidget {
+class _SettingRow extends void StatefulWidget {
   final bool isDark;
   final IconData icon;
   final String label;
@@ -5828,22 +5828,22 @@ class _SettingRow extends StatefulWidget {
   State<_SettingRow> createState() => _SettingRowState();
 }
 
-class _SettingRowState extends State<_SettingRow> {
-  bool _isHovered = false;
+class _SettingRowState extends void State<_SettingRow> {
+  bool isHovered = false;
 
   @override
   Widget build(BuildContext context) {
     final hasClick = widget.onTap != null;
 
-    final badgeBgColor = _isHovered && hasClick
+    final badgeBgColor = isHovered && hasClick
         ? const Color(0xFF1A73E8)
         : (widget.isDark ? const Color(0xFF1A2A4A) : const Color(0xFFE8F0FE));
 
-    final badgeIconColor = _isHovered && hasClick
+    final badgeIconColor = isHovered && hasClick
         ? Colors.white
         : const Color(0xFF1A73E8);
 
-    final chevronColor = _isHovered && hasClick
+    final chevronColor = isHovered && hasClick
         ? const Color(0xFF1A73E8)
         : (widget.isDark ? Colors.white38 : const Color(0xFF5F6368));
 
@@ -5854,10 +5854,10 @@ class _SettingRowState extends State<_SettingRow> {
               ? SystemMouseCursors.click
               : SystemMouseCursors.basic,
           onEnter: (_) {
-            if (hasClick) setState(() => _isHovered = true);
+            if (hasClick) setState(() => isHovered = true);
           },
           onExit: (_) {
-            if (hasClick) setState(() => _isHovered = false);
+            if (hasClick) setState(() => isHovered = false);
           },
           child: InkWell(
             onTap: widget.onTap,
@@ -5866,7 +5866,7 @@ class _SettingRowState extends State<_SettingRow> {
               duration: const Duration(milliseconds: 150),
               padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 6),
               decoration: BoxDecoration(
-                color: _isHovered && hasClick
+                color: isHovered && hasClick
                     ? (widget.isDark
                           ? const Color(0xFF2E3238)
                           : const Color(0xFFF8F9FA))
@@ -5963,7 +5963,7 @@ class _TabItem {
 // ═════════════════════════════════════════════════════════════════════════════
 // CREATE SUB-ID MODAL DIALOG (Modern & Professional)
 // ═════════════════════════════════════════════════════════════════════════════
-class _CreateSubIdDialog extends StatefulWidget {
+class _CreateSubIdDialog extends void StatefulWidget {
   final AccountModel account;
   final bool isDark;
   final ValueChanged<Map<String, String>> onCreated;
@@ -5978,16 +5978,16 @@ class _CreateSubIdDialog extends StatefulWidget {
   State<_CreateSubIdDialog> createState() => _CreateSubIdDialogState();
 }
 
-class _CreateSubIdDialogState extends State<_CreateSubIdDialog> {
-  String _accountType = 'Business (Employee / Team)';
-  final _prefixController = TextEditingController();
-  final _firstNameController = TextEditingController();
-  final _lastNameController = TextEditingController();
-  final _passwordController = TextEditingController();
-  bool _obscurePassword = true;
-  bool _isSubmitting = false;
+class _CreateSubIdDialogState extends void State<_CreateSubIdDialog> {
+  String accountType = 'Business (Employee / Team)';
+  final prefixController = TextEditingController();
+  final firstNameController = TextEditingController();
+  final lastNameController = TextEditingController();
+  final passwordController = TextEditingController();
+  bool obscurePassword = true;
+  bool isSubmitting = false;
 
-  final List<_CategoryData> _categories = [
+  final List<_CategoryData> categories = [
     _CategoryData(
       title: 'Finance',
       icon: Icons.attach_money_rounded,
@@ -6062,41 +6062,41 @@ class _CreateSubIdDialogState extends State<_CreateSubIdDialog> {
     ),
   ];
 
-  final Set<int> _checkedSubItems = {};
+  final Set<int> checkedSubItems = {};
 
   @override
   void dispose() {
-    _prefixController.dispose();
-    _firstNameController.dispose();
-    _lastNameController.dispose();
-    _passwordController.dispose();
+    prefixController.dispose();
+    firstNameController.dispose();
+    lastNameController.dispose();
+    passwordController.dispose();
     super.dispose();
   }
 
-  bool _isCategoryChecked(_CategoryData cat) {
+  bool isCategoryChecked(_CategoryData cat) {
     if (cat.subItems.isEmpty) return false;
-    return cat.subItems.every((item) => _checkedSubItems.contains(item.id));
+    return cat.subItems.every((item) => checkedSubItems.contains(item.id));
   }
 
-  void _toggleCategory(_CategoryData cat) {
-    final allChecked = _isCategoryChecked(cat);
+  void toggleCategory(_CategoryData cat) {
+    final allChecked = isCategoryChecked(cat);
     setState(() {
       for (final item in cat.subItems) {
         if (allChecked) {
-          _checkedSubItems.remove(item.id);
+          checkedSubItems.remove(item.id);
         } else {
-          _checkedSubItems.add(item.id);
+          checkedSubItems.add(item.id);
         }
       }
     });
   }
 
-  void _toggleSubItem(_SubItemData item) {
+  void toggleSubItem(_SubItemData item) {
     setState(() {
-      if (_checkedSubItems.contains(item.id)) {
-        _checkedSubItems.remove(item.id);
+      if (checkedSubItems.contains(item.id)) {
+        checkedSubItems.remove(item.id);
       } else {
-        _checkedSubItems.add(item.id);
+        checkedSubItems.add(item.id);
       }
     });
   }
@@ -6191,9 +6191,9 @@ class _CreateSubIdDialogState extends State<_CreateSubIdDialog> {
                       return Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
-                          _buildLeftFields(suffixEmail, isDark),
+                          buildLeftFields(suffixEmail, isDark),
                           const SizedBox(height: 20),
-                          _buildRightPermissions(isDark, 310),
+                          buildRightPermissions(isDark, 310),
                         ],
                       );
                     }
@@ -6204,14 +6204,14 @@ class _CreateSubIdDialogState extends State<_CreateSubIdDialog> {
                         // Left Column Form
                         Expanded(
                           flex: 11,
-                          child: _buildLeftFields(suffixEmail, isDark),
+                          child: buildLeftFields(suffixEmail, isDark),
                         ),
                         const SizedBox(width: 20),
 
                         // Right Column: Big Centre Sub Tab (330px height)
                         Expanded(
                           flex: 12,
-                          child: _buildRightPermissions(isDark, 330),
+                          child: buildRightPermissions(isDark, 330),
                         ),
                       ],
                     );
@@ -6254,7 +6254,7 @@ class _CreateSubIdDialogState extends State<_CreateSubIdDialog> {
                         ),
                       ),
                       FilledButton(
-                        onPressed: _isSubmitting ? null : _submit,
+                        onPressed: isSubmitting ? null : submit,
                         style: FilledButton.styleFrom(
                           backgroundColor: const Color(0xFF1A73E8),
                           foregroundColor: Colors.white,
@@ -6267,7 +6267,7 @@ class _CreateSubIdDialogState extends State<_CreateSubIdDialog> {
                             borderRadius: BorderRadius.circular(20),
                           ),
                         ),
-                        child: _isSubmitting
+                        child: isSubmitting
                             ? const SizedBox(
                                 width: 18,
                                 height: 18,
@@ -6295,7 +6295,7 @@ class _CreateSubIdDialogState extends State<_CreateSubIdDialog> {
     );
   }
 
-  Widget _buildLeftFields(String suffixEmail, bool isDark) {
+  Widget buildLeftFields(String suffixEmail, bool isDark) {
     final borderSide = BorderSide(
       color: isDark ? const Color(0xFF383C44) : const Color(0xFFD1D5DB),
       width: 1,
@@ -6305,7 +6305,7 @@ class _CreateSubIdDialogState extends State<_CreateSubIdDialog> {
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         // Account Type
-        _buildFieldLabel('Account Type', isDark),
+        buildFieldLabel('Account Type', isDark),
         const SizedBox(height: 6),
         PopupMenuButton<String>(
           tooltip: 'Select Account Type',
@@ -6319,17 +6319,17 @@ class _CreateSubIdDialogState extends State<_CreateSubIdDialog> {
           ),
           color: isDark ? const Color(0xFF24272B) : Colors.white,
           onSelected: (val) {
-            setState(() => _accountType = val);
+            setState(() => accountType = val);
           },
           itemBuilder: (context) => [
-            _buildAccountTypeItem(
+            buildAccountTypeItem(
               title: 'Business (Employee / Team)',
-              isSelected: _accountType == 'Business (Employee / Team)',
+              isSelected: accountType == 'Business (Employee / Team)',
               isDark: isDark,
             ),
-            _buildAccountTypeItem(
+            buildAccountTypeItem(
               title: 'Personal (Assistant / Family)',
-              isSelected: _accountType == 'Personal (Assistant / Family)',
+              isSelected: accountType == 'Personal (Assistant / Family)',
               isDark: isDark,
             ),
           ],
@@ -6350,7 +6350,7 @@ class _CreateSubIdDialogState extends State<_CreateSubIdDialog> {
               children: [
                 Expanded(
                   child: Text(
-                    _accountType,
+                    accountType,
                     style: TextStyle(
                       fontSize: 13,
                       fontWeight: FontWeight.w500,
@@ -6371,7 +6371,7 @@ class _CreateSubIdDialogState extends State<_CreateSubIdDialog> {
         const SizedBox(height: 14),
 
         // Username Prefix
-        _buildFieldLabel('Username Prefix', isDark),
+        buildFieldLabel('Username Prefix', isDark),
         const SizedBox(height: 6),
         Container(
           height: 42,
@@ -6386,7 +6386,7 @@ class _CreateSubIdDialogState extends State<_CreateSubIdDialog> {
             children: [
               Expanded(
                 child: TextField(
-                  controller: _prefixController,
+                  controller: prefixController,
                   style: TextStyle(
                     fontSize: 13,
                     color: isDark ? Colors.white : const Color(0xFF1E2124),
@@ -6443,12 +6443,12 @@ class _CreateSubIdDialogState extends State<_CreateSubIdDialog> {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  _buildFieldLabel('First Name', isDark),
+                  buildFieldLabel('First Name', isDark),
                   const SizedBox(height: 6),
                   SizedBox(
                     height: 42,
                     child: TextField(
-                      controller: _firstNameController,
+                      controller: firstNameController,
                       style: TextStyle(
                         fontSize: 13,
                         color: isDark ? Colors.white : const Color(0xFF1E2124),
@@ -6489,12 +6489,12 @@ class _CreateSubIdDialogState extends State<_CreateSubIdDialog> {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  _buildFieldLabel('Last Name', isDark),
+                  buildFieldLabel('Last Name', isDark),
                   const SizedBox(height: 6),
                   SizedBox(
                     height: 42,
                     child: TextField(
-                      controller: _lastNameController,
+                      controller: lastNameController,
                       style: TextStyle(
                         fontSize: 13,
                         color: isDark ? Colors.white : const Color(0xFF1E2124),
@@ -6535,13 +6535,13 @@ class _CreateSubIdDialogState extends State<_CreateSubIdDialog> {
         const SizedBox(height: 14),
 
         // Temporary Password (with toggle visibility)
-        _buildFieldLabel('Temporary Password', isDark),
+        buildFieldLabel('Temporary Password', isDark),
         const SizedBox(height: 6),
         SizedBox(
           height: 42,
           child: TextField(
-            controller: _passwordController,
-            obscureText: _obscurePassword,
+            controller: passwordController,
+            obscureText: obscurePassword,
             style: TextStyle(
               fontSize: 13,
               color: isDark ? Colors.white : const Color(0xFF1E2124),
@@ -6556,14 +6556,14 @@ class _CreateSubIdDialogState extends State<_CreateSubIdDialog> {
               ),
               suffixIcon: IconButton(
                 icon: Icon(
-                  _obscurePassword
+                  obscurePassword
                       ? Icons.visibility_off_outlined
                       : Icons.visibility_outlined,
                   size: 18,
                   color: isDark ? Colors.white54 : const Color(0xFF757575),
                 ),
                 onPressed: () =>
-                    setState(() => _obscurePassword = !_obscurePassword),
+                    setState(() => obscurePassword = !obscurePassword),
                 splashRadius: 16,
               ),
               border: OutlineInputBorder(
@@ -6588,7 +6588,7 @@ class _CreateSubIdDialogState extends State<_CreateSubIdDialog> {
     );
   }
 
-  PopupMenuItem<String> _buildAccountTypeItem({
+  PopupMenuItem<String> buildAccountTypeItem({
     required String title,
     required bool isSelected,
     required bool isDark,
@@ -6626,7 +6626,7 @@ class _CreateSubIdDialogState extends State<_CreateSubIdDialog> {
   // ═══════════════════════════════════════════════════════════════════════════
   // BIG CENTRE SUB-TAB: ACCESS PERMISSIONS (330px height, modern scroll list)
   // ═══════════════════════════════════════════════════════════════════════════
-  Widget _buildRightPermissions(bool isDark, double height) {
+  Widget buildRightPermissions(bool isDark, double height) {
     final borderColor = isDark
         ? const Color(0xFF383C44)
         : const Color(0xFFD1D5DB);
@@ -6640,8 +6640,8 @@ class _CreateSubIdDialogState extends State<_CreateSubIdDialog> {
         Row(
           mainAxisAlignment: MainAxisAlignment.spaceBetween,
           children: [
-            _buildFieldLabel('Access Permissions', isDark),
-            if (_checkedSubItems.isNotEmpty)
+            buildFieldLabel('Access Permissions', isDark),
+            if (checkedSubItems.isNotEmpty)
               Container(
                 padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 2),
                 decoration: BoxDecoration(
@@ -6651,7 +6651,7 @@ class _CreateSubIdDialogState extends State<_CreateSubIdDialog> {
                   borderRadius: BorderRadius.circular(10),
                 ),
                 child: Text(
-                  '${_checkedSubItems.length} selected',
+                  '${checkedSubItems.length} selected',
                   style: const TextStyle(
                     fontSize: 11,
                     fontWeight: FontWeight.w600,
@@ -6673,7 +6673,7 @@ class _CreateSubIdDialogState extends State<_CreateSubIdDialog> {
             borderRadius: BorderRadius.circular(9),
             child: ListView.separated(
               padding: const EdgeInsets.symmetric(vertical: 4),
-              itemCount: _categories.length,
+              itemCount: categories.length,
               separatorBuilder: (_, _) => Divider(
                 height: 1,
                 thickness: 0.5,
@@ -6682,8 +6682,8 @@ class _CreateSubIdDialogState extends State<_CreateSubIdDialog> {
                     : const Color(0xFFEDEFF2),
               ),
               itemBuilder: (context, catIndex) {
-                final cat = _categories[catIndex];
-                final isCatChecked = _isCategoryChecked(cat);
+                final cat = categories[catIndex];
+                final isCatChecked = isCategoryChecked(cat);
 
                 return Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
@@ -6716,7 +6716,7 @@ class _CreateSubIdDialogState extends State<_CreateSubIdDialog> {
                                 shape: RoundedRectangleBorder(
                                   borderRadius: BorderRadius.circular(4),
                                 ),
-                                onChanged: (_) => _toggleCategory(cat),
+                                onChanged: (_) => toggleCategory(cat),
                               ),
                             ),
                             const SizedBox(width: 8),
@@ -6757,7 +6757,7 @@ class _CreateSubIdDialogState extends State<_CreateSubIdDialog> {
                     // Sub Items
                     if (cat.isExpanded)
                       ...cat.subItems.map((subItem) {
-                        final isSubChecked = _checkedSubItems.contains(
+                        final isSubChecked = checkedSubItems.contains(
                           subItem.id,
                         );
 
@@ -6769,7 +6769,7 @@ class _CreateSubIdDialogState extends State<_CreateSubIdDialog> {
                             bottom: 1,
                           ),
                           child: InkWell(
-                            onTap: () => _toggleSubItem(subItem),
+                            onTap: () => toggleSubItem(subItem),
                             hoverColor: isDark
                                 ? const Color(0xFF282D36)
                                 : const Color(0xFFEBF3FE),
@@ -6804,7 +6804,7 @@ class _CreateSubIdDialogState extends State<_CreateSubIdDialog> {
                                       shape: RoundedRectangleBorder(
                                         borderRadius: BorderRadius.circular(3),
                                       ),
-                                      onChanged: (_) => _toggleSubItem(subItem),
+                                      onChanged: (_) => toggleSubItem(subItem),
                                     ),
                                   ),
                                   const SizedBox(width: 8),
@@ -6847,7 +6847,7 @@ class _CreateSubIdDialogState extends State<_CreateSubIdDialog> {
     );
   }
 
-  Widget _buildFieldLabel(String label, bool isDark) {
+  Widget buildFieldLabel(String label, bool isDark) {
     return Text(
       label,
       style: TextStyle(
@@ -6859,11 +6859,11 @@ class _CreateSubIdDialogState extends State<_CreateSubIdDialog> {
     );
   }
 
-  Future<void> _submit() async {
-    final prefix = _prefixController.text.trim();
-    final firstName = _firstNameController.text.trim();
-    final lastName = _lastNameController.text.trim();
-    final password = _passwordController.text.trim();
+  Future<void> submit() async {
+    final prefix = prefixController.text.trim();
+    final firstName = firstNameController.text.trim();
+    final lastName = lastNameController.text.trim();
+    final password = passwordController.text.trim();
     final fullName = ('$firstName $lastName').trim();
 
     final baseEmail = widget.account.email;
@@ -6882,17 +6882,17 @@ class _CreateSubIdDialogState extends State<_CreateSubIdDialog> {
       return;
     }
 
-    setState(() => _isSubmitting = true);
+    setState(() => isSubmitting = true);
 
     try {
-      final perms = _checkedSubItems.toList();
+      final perms = checkedSubItems.toList();
 
       final res = await UserRepository.createSubId(
         prefix: prefix,
         password: password.isNotEmpty ? password : 'TempPassword123!',
         firstName: firstName.isNotEmpty ? firstName : 'Sub',
         lastName: lastName.isNotEmpty ? lastName : 'User',
-        accountType: _accountType.contains('Personal')
+        accountType: accountType.contains('Personal')
             ? 'PERSONAL'
             : 'BUSINESS',
         permissions: perms,
@@ -6906,13 +6906,13 @@ class _CreateSubIdDialogState extends State<_CreateSubIdDialog> {
       widget.onCreated({
         'username': createdUsername,
         'name': fullName.isNotEmpty ? fullName : 'Sub User',
-        'type': _accountType.contains('Personal') ? 'PERSONAL' : 'BUSINESS',
+        'type': accountType.contains('Personal') ? 'PERSONAL' : 'BUSINESS',
       });
 
       if (mounted) Navigator.pop(context);
     } catch (e) {
       if (mounted) {
-        setState(() => _isSubmitting = false);
+        setState(() => isSubmitting = false);
         final errorMessage = e is ApiException ? e.message : e.toString();
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
