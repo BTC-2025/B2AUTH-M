@@ -44,19 +44,34 @@ class UserModel {
           : (json['username']?.toString() ?? email),
       email: email,
       avatarUrl: () {
-        final ppUrl = json['profilePictureUrl']?.toString();
-        if (ppUrl != null && ppUrl.isNotEmpty && ppUrl != 'null') {
-          return ppUrl;
-        }
         final pp = json['profilePicture']?.toString();
         if (pp != null && pp.isNotEmpty && pp != 'null') {
-          if (pp.startsWith('/') || pp.startsWith('http')) return pp;
-          final userOrEmail = email.isNotEmpty ? email : (json['username']?.toString() ?? '');
-          return userOrEmail.isNotEmpty ? '/api/users/profile-picture/$userOrEmail' : pp;
+          if (pp.startsWith('data:image') || pp.contains(';base64,')) {
+            return pp;
+          }
+          if (pp.length > 100 && !pp.startsWith('/') && !pp.startsWith('http')) {
+            return pp.startsWith('data:') ? pp : 'data:image/png;base64,$pp';
+          }
         }
         final av = json['avatarUrl']?.toString() ?? json['avatar']?.toString();
         if (av != null && av.isNotEmpty && av != 'null') {
-          return av;
+          if (av.startsWith('data:image') || av.contains(';base64,')) {
+            return av;
+          }
+        }
+        if (pp != null && pp.isNotEmpty && pp != 'null') {
+          if (pp.startsWith('http://') || pp.startsWith('https://') || pp.startsWith('/')) {
+            return pp;
+          }
+        }
+        if (av != null && av.isNotEmpty && av != 'null') {
+          if (av.startsWith('http://') || av.startsWith('https://') || av.startsWith('/')) {
+            return av;
+          }
+        }
+        final ppUrl = json['profilePictureUrl']?.toString();
+        if (ppUrl != null && ppUrl.isNotEmpty && ppUrl != 'null') {
+          return ppUrl;
         }
         return null;
       }(),

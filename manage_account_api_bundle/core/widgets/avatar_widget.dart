@@ -126,13 +126,12 @@ class AvatarWidget extends StatelessWidget {
           }
           imageWidget = Image.network(
             absoluteUrl,
-            key: ValueKey(absoluteUrl),
+            key: ValueKey('$cleanName-$absoluteUrl'),
             width: size,
             height: size,
             fit: BoxFit.cover,
             headers: headers,
             errorBuilder: (context, error, stackTrace) {
-              print('[AVATAR IMAGE LOAD ERROR] URL: $absoluteUrl | Error: $error');
               return _buildLetterAvatar(firstLetter);
             },
           );

@@ -139,7 +139,13 @@ class _MacOsDashboardViewState extends State<MacOsDashboardView> {
               children: [
                 // Primary Account Circular Profile Avatar
                 ProfileAvatar(
-                  letter: primaryAccount.avatarLetter.isNotEmpty ? primaryAccount.avatarLetter : 'R',
+                  letter: primaryAccount.avatarLetter.isNotEmpty
+                      ? primaryAccount.avatarLetter
+                      : (primaryAccount.name.isNotEmpty
+                          ? primaryAccount.name[0].toUpperCase()
+                          : (primaryAccount.email.isNotEmpty
+                              ? primaryAccount.email[0].toUpperCase()
+                              : 'U')),
                   imageUrl: primaryAccount.effectiveAvatarUrl ?? primaryAccount.avatarUrl,
                   imagePath: primaryAccount.profileImagePath,
                   size: 44,
@@ -325,7 +331,13 @@ class _MacOsDashboardViewState extends State<MacOsDashboardView> {
                                   children: [
                                     // Circular Profile Avatar with fallback to uppercase letter
                                     ProfileAvatar(
-                                      letter: acc.avatarLetter.isNotEmpty ? acc.avatarLetter : 'R',
+                                      letter: acc.avatarLetter.isNotEmpty
+                                          ? acc.avatarLetter
+                                          : (acc.name.isNotEmpty
+                                              ? acc.name[0].toUpperCase()
+                                              : (acc.email.isNotEmpty
+                                                  ? acc.email[0].toUpperCase()
+                                                  : 'U')),
                                       imageUrl: acc.effectiveAvatarUrl ?? acc.avatarUrl,
                                       imagePath: acc.profileImagePath,
                                       size: 44,

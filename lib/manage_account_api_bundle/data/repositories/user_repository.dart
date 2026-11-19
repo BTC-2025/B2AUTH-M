@@ -60,6 +60,20 @@ class UserRepository {
       } catch (_) {}
 
       if (data.isEmpty) return null;
+
+      final remoteEmail = (data['email'] ?? data['userEmail'] ?? '')
+          .toString()
+          .trim()
+          .toLowerCase();
+      if (cleanEmail.isNotEmpty &&
+          remoteEmail.isNotEmpty &&
+          remoteEmail != cleanEmail) {
+        print(
+          '[PROFILE REPO WARNING] Remote profile email $remoteEmail does not match requested $cleanEmail. Discarding mismatched remote data.',
+        );
+        return null;
+      }
+
       if ((data['email'] == null || data['email'].toString().isEmpty) &&
           cleanEmail.isNotEmpty) {
         data['email'] = cleanEmail;
@@ -86,24 +100,23 @@ class UserRepository {
         }
       }
       final savedAvatar = await TokenService.getUserAvatar(user.email);
-      final loggedInEmail = (await TokenService.getUserEmail() ?? '')
-          .trim()
-          .toLowerCase();
-      final savedAvatarAlt = await TokenService.getUserAvatar(loggedInEmail);
-      final effectiveSavedAvatar = savedAvatar ?? savedAvatarAlt;
 
       String? avatarToUse;
       if (user.avatarUrl != null &&
           user.avatarUrl!.isNotEmpty &&
           user.avatarUrl != 'null') {
-        // If local storage has a versioned URL with a cache-buster (?t=...) for this same base URL, preserve it!
-        final remoteBase = user.avatarUrl!.split('?').first.trim();
-        if (effectiveSavedAvatar != null &&
-            effectiveSavedAvatar.split('?').first.trim() == remoteBase &&
-            effectiveSavedAvatar.contains('?t=')) {
-          avatarToUse = effectiveSavedAvatar;
-        } else {
+        if (user.avatarUrl!.startsWith('data:image') || user.avatarUrl!.contains(';base64,')) {
           avatarToUse = user.avatarUrl;
+        } else {
+          // If local storage has a versioned URL with a cache-buster (?t=...) for this same base URL, preserve it!
+          final remoteBase = user.avatarUrl!.split('?').first.trim();
+          if (savedAvatar != null &&
+              savedAvatar.split('?').first.trim() == remoteBase &&
+              savedAvatar.contains('?t=')) {
+            avatarToUse = savedAvatar;
+          } else {
+            avatarToUse = user.avatarUrl;
+          }
         }
       } else {
         // Server indicates no profile picture exists or it was removed
@@ -112,16 +125,10 @@ class UserRepository {
 
       if (avatarToUse != null && avatarToUse.isNotEmpty) {
         await TokenService.saveUserAvatar(user.email, avatarToUse);
-        if (loggedInEmail.isNotEmpty) {
-          await TokenService.saveUserAvatar(loggedInEmail, avatarToUse);
-        }
         return user.copyWith(avatarUrl: avatarToUse);
       } else {
         // Avatar was cleared/removed on backend
         await TokenService.saveUserAvatar(user.email, '');
-        if (loggedInEmail.isNotEmpty) {
-          await TokenService.saveUserAvatar(loggedInEmail, '');
-        }
         return user.copyWith(avatarUrl: null);
       }
     } catch (_) {
@@ -182,7 +189,41 @@ class UserRepository {
       }
     } catch (_) {}
 
+    final remoteEmail = (remoteData['email'] ?? remoteData['userEmail'] ?? '')
+        .toString()
+        .trim()
+        .toLowerCase();
+    if (cleanEmail.isNotEmpty &&
+        remoteEmail.isNotEmpty &&
+        remoteEmail != cleanEmail) {
+      print(
+        '[PROFILE REPO WARNING] Remote profile email $remoteEmail does not match requested $cleanEmail. Discarding mismatched remote data.',
+      );
+      return localSettings.isNotEmpty ? localSettings : null;
+    }
+
     final merged = {...localSettings, ...remoteData};
+    if (remoteData.isNotEmpty) {
+      final pp = remoteData['profilePicture']?.toString();
+      final avUrl = remoteData['avatarUrl']?.toString();
+      if (pp != null && pp.startsWith('data:image')) {
+        merged['avatarUrl'] = pp;
+        merged['profilePicture'] = pp;
+      } else if (avUrl != null && avUrl.startsWith('data:image')) {
+        merged['avatarUrl'] = avUrl;
+      }
+
+      final remoteAvatar = merged['avatarUrl'] ??
+          remoteData['profilePictureUrl'] ??
+          remoteData['avatarUrl'] ??
+          remoteData['profilePicture'];
+      if (remoteAvatar == null || remoteAvatar.toString().isEmpty || remoteAvatar == 'null') {
+        merged.remove('profilePictureUrl');
+        merged.remove('avatarUrl');
+        merged.remove('profilePicture');
+        merged.remove('profile_picture');
+      }
+    }
     if (cleanEmail.isNotEmpty && merged.isNotEmpty) {
       await TokenService.saveUserSettings(cleanEmail, merged);
     }
@@ -267,23 +308,43 @@ class UserRepository {
     }
     try {
       // 5.7 Update Profile: PATCH /api/users/profile
-      final res = await ApiClient.patch('/api/users/profile', body: fields);
+      final res = await ApiClient.patch(
+        '/api/users/profile',
+        body: fields,
+        accountEmail: cleanEmail,
+      );
       final data = res['data'];
       if (data is Map<String, dynamic> && cleanEmail.isNotEmpty) {
-        final existing = await TokenService.getUserSettings(cleanEmail) ?? {};
-        await TokenService.saveUserSettings(cleanEmail, {...existing, ...data});
+        final returnedEmail = (data['email'] ?? data['userEmail'] ?? '')
+            .toString()
+            .trim()
+            .toLowerCase();
+        if (returnedEmail.isEmpty || returnedEmail == cleanEmail) {
+          final existing = await TokenService.getUserSettings(cleanEmail) ?? {};
+          await TokenService.saveUserSettings(cleanEmail, {...existing, ...data});
+        }
       }
     } catch (_) {
       try {
         // Fallback 1: PATCH /api/users/settings
-        final res = await ApiClient.patch('/api/users/settings', body: fields);
+        final res = await ApiClient.patch(
+          '/api/users/settings',
+          body: fields,
+          accountEmail: cleanEmail,
+        );
         final data = res['data'];
         if (data is Map<String, dynamic> && cleanEmail.isNotEmpty) {
-          final existing = await TokenService.getUserSettings(cleanEmail) ?? {};
-          await TokenService.saveUserSettings(cleanEmail, {
-            ...existing,
-            ...data,
-          });
+          final returnedEmail = (data['email'] ?? data['userEmail'] ?? '')
+              .toString()
+              .trim()
+              .toLowerCase();
+          if (returnedEmail.isEmpty || returnedEmail == cleanEmail) {
+            final existing = await TokenService.getUserSettings(cleanEmail) ?? {};
+            await TokenService.saveUserSettings(cleanEmail, {
+              ...existing,
+              ...data,
+            });
+          }
         }
       } catch (e) {
         print('[PROFILE UPDATE API LOG] $e');
@@ -299,60 +360,53 @@ class UserRepository {
     String? filename,
   }) async {
     final cleanEmail = email.trim().toLowerCase();
-    final loggedInEmail = (await TokenService.getUserEmail())
-        ?.trim()
-        .toLowerCase();
 
     try {
       final res = await ApiClient.uploadProfilePicture(
         filePath ?? imagePath,
         bytes: bytes,
         filename: filename,
+        accountEmail: cleanEmail,
       );
       print('[AVATAR UPLOAD API RESPONSE] $res');
 
       final remoteData = (res['data'] as Map<String, dynamic>?) ?? res;
 
-      // Contract from bnx_account_ui_api_reference.md Section 1.3:
-      // "profilePicture": "filename.png",
-      // "profilePictureUrl": "/api/users/profile-picture/siva"
-      String? serverAvatarUrl = remoteData['profilePictureUrl']?.toString();
-      if (serverAvatarUrl == null ||
-          serverAvatarUrl.isEmpty ||
-          serverAvatarUrl == 'null') {
-        final pp =
-            remoteData['profilePicture']?.toString() ??
-            remoteData['avatarUrl']?.toString() ??
-            remoteData['avatar']?.toString() ??
-            remoteData['url']?.toString();
-        if (pp != null && pp.isNotEmpty && pp != 'null') {
-          if (pp.startsWith('/') || pp.startsWith('http')) {
-            serverAvatarUrl = pp;
-          } else {
-            // It's a filename or ID, serve via profile picture endpoint
-            final emailForUrl = cleanEmail.isNotEmpty
-                ? cleanEmail
-                : (loggedInEmail ?? '');
-            serverAvatarUrl = '/api/users/profile-picture/$emailForUrl';
-          }
+      String? serverAvatarUrl;
+      final pp = remoteData['profilePicture']?.toString() ??
+          remoteData['avatarUrl']?.toString() ??
+          remoteData['avatar']?.toString() ??
+          remoteData['url']?.toString();
+
+      if (pp != null && pp.isNotEmpty && pp != 'null') {
+        if (pp.startsWith('data:image') || pp.contains(';base64,')) {
+          serverAvatarUrl = pp;
+        } else if (pp.startsWith('/') || pp.startsWith('http')) {
+          serverAvatarUrl = pp;
+        }
+      }
+
+      if (serverAvatarUrl == null || serverAvatarUrl.isEmpty) {
+        final ppUrl = remoteData['profilePictureUrl']?.toString();
+        if (ppUrl != null && ppUrl.isNotEmpty && ppUrl != 'null') {
+          serverAvatarUrl = ppUrl;
         }
       }
 
       if (serverAvatarUrl != null &&
           serverAvatarUrl.isNotEmpty &&
           serverAvatarUrl != 'null') {
-        // Append cache-buster timestamp so Flutter NetworkImage and HTTP caches fetch the fresh photo
-        final timestamp = DateTime.now().millisecondsSinceEpoch;
-        final cleanServerUrl = serverAvatarUrl.split('?').first;
-        final versionedUrl = '$cleanServerUrl?t=$timestamp';
+        String finalUrl = serverAvatarUrl;
+        if (!serverAvatarUrl.startsWith('data:')) {
+          final timestamp = DateTime.now().millisecondsSinceEpoch;
+          final cleanServerUrl = serverAvatarUrl.split('?').first;
+          finalUrl = '$cleanServerUrl?t=$timestamp';
+        }
 
         if (cleanEmail.isNotEmpty) {
-          await TokenService.saveUserAvatar(cleanEmail, versionedUrl);
+          await TokenService.saveUserAvatar(cleanEmail, finalUrl);
         }
-        if (loggedInEmail != null && loggedInEmail.isNotEmpty) {
-          await TokenService.saveUserAvatar(loggedInEmail, versionedUrl);
-        }
-        return versionedUrl;
+        return finalUrl;
       }
     } catch (e) {
       print('[AVATAR UPLOAD ERROR] $e');
@@ -367,12 +421,11 @@ class UserRepository {
     if (cleanEmail.isNotEmpty) {
       await TokenService.saveUserAvatar(cleanEmail, '');
     }
-    final loggedInEmail = await TokenService.getUserEmail();
-    if (loggedInEmail != null && loggedInEmail.isNotEmpty) {
-      await TokenService.saveUserAvatar(loggedInEmail, '');
-    }
     try {
-      final res = await ApiClient.delete('/api/users/profile-picture');
+      final res = await ApiClient.delete(
+        '/api/users/profile-picture',
+        accountEmail: cleanEmail,
+      );
       return res['success'] == true || res['error'] == null;
     } catch (e) {
       print('[AVATAR DELETE ERROR] $e');
@@ -633,9 +686,9 @@ class UserRepository {
   // ── Section 5: Manage Accounts & Sub-IDs ───────────────────────────────────
 
   /// 5.1 List Connected Mail Accounts (GET /api/emails/list)
-  static Future<List<Map<String, dynamic>>> getConnectedEmails() async {
+  static Future<List<Map<String, dynamic>>> getConnectedEmails({String? email}) async {
     try {
-      final res = await ApiClient.get('/api/emails/list');
+      final res = await ApiClient.get('/api/emails/list', accountEmail: email);
       final data = res['data'];
       dynamic list;
       if (data is Map && data.containsKey('emails')) {
@@ -664,11 +717,13 @@ class UserRepository {
   static Future<Map<String, dynamic>?> createMailbox({
     required String emailName,
     required String password,
+    String? email,
   }) async {
     try {
       final res = await ApiClient.post(
         '/api/emails/create',
         body: {'emailName': emailName.trim(), 'password': password},
+        accountEmail: email,
       );
       final data = res['data'];
       if (data is Map) {
@@ -682,9 +737,12 @@ class UserRepository {
   }
 
   /// 5.3 Switch Primary Mailbox (POST /api/emails/{emailId}/set-primary)
-  static Future<bool> switchPrimaryMailbox(dynamic emailId) async {
+  static Future<bool> switchPrimaryMailbox(dynamic emailId, {String? email}) async {
     try {
-      final res = await ApiClient.post('/api/emails/$emailId/set-primary');
+      final res = await ApiClient.post(
+        '/api/emails/$emailId/set-primary',
+        accountEmail: email,
+      );
       return res['success'] == true || res['data'] != null;
     } catch (e) {
       print('[SWITCH PRIMARY MAILBOX ERROR] $e');
@@ -693,18 +751,24 @@ class UserRepository {
   }
 
   /// Alias for switchPrimaryMailbox for backward compatibility
-  static Future<void> setPrimaryMailbox(dynamic emailId) async {
-    await switchPrimaryMailbox(emailId);
+  static Future<void> setPrimaryMailbox(dynamic emailId, {String? email}) async {
+    await switchPrimaryMailbox(emailId, email: email);
   }
 
   /// 5.1 Initiate Email Verification: POST /api/verification/initiate/{emailId}
-  static Future<bool> initiateEmailVerification(dynamic emailId) async {
+  static Future<bool> initiateEmailVerification(dynamic emailId, {String? email}) async {
     try {
-      final res = await ApiClient.post('/api/verification/initiate/$emailId');
+      final res = await ApiClient.post(
+        '/api/verification/initiate/$emailId',
+        accountEmail: email,
+      );
       return res['success'] == true || res['error'] == null;
     } catch (_) {
       try {
-        final res = await ApiClient.get('/api/verification/initiate/$emailId');
+        final res = await ApiClient.get(
+          '/api/verification/initiate/$emailId',
+          accountEmail: email,
+        );
         return res['success'] == true || res['error'] == null;
       } catch (e) {
         print('[EMAIL VERIFICATION INITIATE ERROR] $e');
@@ -821,9 +885,12 @@ class UserRepository {
   }
 
   /// 5.6 Parent Approval for Child Accounts (PATCH /api/users/{id}/approve)
-  static Future<bool> approveChildAccount(dynamic userId) async {
+  static Future<bool> approveChildAccount(dynamic userId, {String? email}) async {
     try {
-      final res = await ApiClient.patch('/api/users/$userId/approve');
+      final res = await ApiClient.patch(
+        '/api/users/$userId/approve',
+        accountEmail: email,
+      );
       return res['success'] == true ||
           (res['data'] is Map && res['data']['approved'] == true);
     } catch (e) {

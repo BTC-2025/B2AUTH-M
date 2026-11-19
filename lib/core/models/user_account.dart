@@ -52,21 +52,15 @@ class UserAccount {
   /// Dynamically resolves the full profile picture URL for this account.
   /// Works across active account, switched accounts, and newly added accounts.
   String? get effectiveAvatarUrl {
-    if (avatarUrl != null && avatarUrl!.trim().isNotEmpty) {
+    if (avatarUrl != null && avatarUrl!.trim().isNotEmpty && avatarUrl!.trim() != 'null') {
       final trimmed = avatarUrl!.trim();
-      if (trimmed.startsWith('http')) return trimmed;
+      if (trimmed.startsWith('http') || trimmed.startsWith('data:')) return trimmed;
       return 'https://api.bnxmail.com${trimmed.startsWith('/') ? '' : '/'}$trimmed';
     }
-    if (profileImagePath != null && profileImagePath!.trim().isNotEmpty) {
+    if (profileImagePath != null && profileImagePath!.trim().isNotEmpty && profileImagePath!.trim() != 'null') {
       final trimmed = profileImagePath!.trim();
-      if (trimmed.startsWith('http')) return trimmed;
+      if (trimmed.startsWith('http') || trimmed.startsWith('data:')) return trimmed;
       if (trimmed.startsWith('/')) return 'https://api.bnxmail.com$trimmed';
-    }
-    final uname = username.trim().isNotEmpty
-        ? username.trim()
-        : (email.contains('@') ? email.split('@').first.trim() : '');
-    if (uname.isNotEmpty) {
-      return 'https://api.bnxmail.com/api/users/profile-picture/$uname';
     }
     return null;
   }
@@ -107,7 +101,13 @@ class UserAccount {
       bio: map['bio'],
       location: map['location'],
       website: map['website'],
-      avatarLetter: map['avatarLetter'] ?? (map['name'] != null && map['name'].isNotEmpty ? map['name'][0] : 'R'),
+      avatarLetter: (map['avatarLetter'] != null && map['avatarLetter'].toString().isNotEmpty)
+          ? map['avatarLetter'].toString()
+          : (map['name'] != null && map['name'].toString().isNotEmpty
+              ? map['name'].toString()[0].toUpperCase()
+              : (map['email'] != null && map['email'].toString().isNotEmpty
+                  ? map['email'].toString()[0].toUpperCase()
+                  : 'U')),
       type: map['type'] != null ? AccountType.values[map['type']] : AccountType.personal,
       isPrimary: map['isPrimary'] ?? false,
       isActive: map['isActive'] ?? true,
@@ -117,7 +117,13 @@ class UserAccount {
       securityScore: map['securityScore'] ?? 80,
       recoveryEmail: map['recoveryEmail'],
       phoneNumber: map['phoneNumber'],
-      avatarUrl: map['profilePictureUrl'] ?? map['avatarUrl'] ?? map['avatar'] ?? map['logo'],
+      avatarUrl: () {
+        final pp = map['profilePicture']?.toString();
+        if (pp != null && pp.isNotEmpty && pp != 'null') {
+          if (pp.startsWith('data:image') || pp.contains(';base64,')) return pp;
+        }
+        return map['profilePictureUrl'] ?? map['avatarUrl'] ?? map['avatar'] ?? map['logo'] ?? pp;
+      }(),
       profileImagePath: map['profileImagePath'] ?? map['profilePictureUrl'] ?? map['avatarUrl'] ?? map['avatar'],
       token: map['token'] ?? map['accessToken'],
     );

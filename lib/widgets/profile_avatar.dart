@@ -1,3 +1,4 @@
+import 'dart:convert';
 import 'dart:io';
 import 'package:flutter/material.dart';
 import '../core/theme/app_colors.dart';
@@ -22,7 +23,7 @@ class ProfileAvatar extends StatelessWidget {
   Widget build(BuildContext context) {
     final String displayLetter = (letter.trim().isNotEmpty)
         ? letter.trim().substring(0, 1).toUpperCase()
-        : 'R';
+        : 'U';
 
     Widget fallbackLetter() {
       return Text(
@@ -37,27 +38,38 @@ class ProfileAvatar extends StatelessWidget {
 
     Widget content;
 
-    final String? effectiveLocalPath =
-        (imagePath != null && imagePath!.isNotEmpty)
+    final String? effectiveUri = (imagePath != null && imagePath!.isNotEmpty)
         ? imagePath
-        : (imageUrl != null &&
-              !imageUrl!.startsWith('http') &&
-              File(imageUrl!).existsSync())
-        ? imageUrl
-        : null;
+        : (imageUrl != null && imageUrl!.isNotEmpty ? imageUrl : null);
 
-    if (effectiveLocalPath != null && File(effectiveLocalPath).existsSync()) {
+    if (effectiveUri != null &&
+        (effectiveUri.startsWith('data:image') || effectiveUri.contains(';base64,'))) {
+      try {
+        final commaIdx = effectiveUri.indexOf(',');
+        final b64 = commaIdx != -1 ? effectiveUri.substring(commaIdx + 1) : effectiveUri;
+        final bytes = base64Decode(b64.trim());
+        content = Image.memory(
+          bytes,
+          width: size,
+          height: size,
+          fit: BoxFit.cover,
+          errorBuilder: (_, _, _) => fallbackLetter(),
+        );
+      } catch (_) {
+        content = fallbackLetter();
+      }
+    } else if (effectiveUri != null && !effectiveUri.startsWith('http') && !effectiveUri.startsWith('/') && File(effectiveUri).existsSync()) {
       content = Image.file(
-        File(effectiveLocalPath),
+        File(effectiveUri),
         width: size,
         height: size,
         fit: BoxFit.cover,
         errorBuilder: (_, _, _) => fallbackLetter(),
       );
-    } else if (imageUrl != null && imageUrl!.isNotEmpty) {
-      final String fullUrl = imageUrl!.startsWith('http')
-          ? imageUrl!
-          : 'https://api.bnxmail.com${imageUrl!.startsWith('/') ? '' : '/'}$imageUrl';
+    } else if (effectiveUri != null && effectiveUri.isNotEmpty) {
+      final String fullUrl = effectiveUri.startsWith('http')
+          ? effectiveUri
+          : 'https://api.bnxmail.com${effectiveUri.startsWith('/') ? '' : '/'}$effectiveUri';
       content = Image.network(
         fullUrl,
         width: size,

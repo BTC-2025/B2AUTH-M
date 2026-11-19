@@ -83,6 +83,7 @@ class TokenService {
             });
           }
         }
+        _memoryFallback.remove(_kGlobalAvatar);
       }
       if (_memoryFallback.containsKey(_kAccess)) {
         final candidate = _memoryFallback[_kAccess];
@@ -427,24 +428,21 @@ class TokenService {
     if (cleanEmail.isNotEmpty) {
       final val = await _safeRead(key: _kAvatarKey(cleanEmail));
       if (val != null && val.isNotEmpty) return val;
+      return null;
     }
-    final globalVal = await _safeRead(key: _kGlobalAvatar);
-    return (globalVal != null && globalVal.isNotEmpty) ? globalVal : null;
+    return null;
   }
 
   static Future<void> saveUserAvatar(String email, String avatar) async {
     final cleanEmail = email.trim().toLowerCase();
-    if (avatar.isNotEmpty) {
-      await _safeWrite(key: _kGlobalAvatar, value: avatar);
-      if (cleanEmail.isNotEmpty) {
+    if (cleanEmail.isNotEmpty) {
+      if (avatar.isNotEmpty) {
         await _safeWrite(key: _kAvatarKey(cleanEmail), value: avatar);
-      }
-    } else {
-      await _safeDelete(key: _kGlobalAvatar);
-      if (cleanEmail.isNotEmpty) {
+      } else {
         await _safeDelete(key: _kAvatarKey(cleanEmail));
       }
     }
+    await _safeDelete(key: _kGlobalAvatar);
   }
 
   // ── User Settings ──────────────────────────────────────────────────────────

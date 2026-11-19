@@ -86,7 +86,9 @@ class IdentityCard extends StatelessWidget {
             child: Row(
               children: [
                 ProfileAvatar(
-                  letter: name.isNotEmpty ? name[0] : 'R',
+                  letter: name.isNotEmpty
+                      ? name[0].toUpperCase()
+                      : (email.isNotEmpty ? email[0].toUpperCase() : 'U'),
                   size: 40,
                   backgroundColor: isCurrent ? AppColors.primary : AppColors.textSecondary,
                   imageUrl: avatarUrl,

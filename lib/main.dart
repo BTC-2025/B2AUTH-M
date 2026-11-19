@@ -13,6 +13,7 @@ import 'core/providers/passkey_provider.dart';
 import 'core/providers/zero_trust_provider.dart';
 import 'services/location_provider.dart';
 import 'screens/auth/notifiers/auth_notifier.dart';
+import 'standalone_macos_storage/pages/macos_storage_page.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -52,6 +53,16 @@ class B2AuthApp extends StatelessWidget {
       darkTheme: AppTheme.darkTheme,
       themeMode: settings.themeMode,
       home: const SplashScreen(),
+      routes: {
+        '/storage': (context) {
+          final email = ModalRoute.of(context)?.settings.arguments as String?;
+          return MacOsStoragePage(
+            accountEmail: email,
+            onBack: () => Navigator.of(context).pop(),
+            backButtonTooltip: 'Back to Account',
+          );
+        },
+      },
     );
   }
 }

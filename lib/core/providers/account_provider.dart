@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import '../models/user_account.dart';
 import '../services/local_storage_service.dart';
 import '../services/user_profile_api_service.dart';
+import '../../manage_account_api_bundle/core/network/token_service.dart';
 
 class AccountProvider with ChangeNotifier {
   List<UserAccount> _accounts = [];
@@ -45,9 +46,6 @@ class AccountProvider with ChangeNotifier {
     _accounts = LocalStorageService.getAccounts();
     _deduplicateAccounts();
     for (var acc in _accounts) {
-      if (acc.avatarUrl == null || acc.avatarUrl!.isEmpty) {
-        acc.avatarUrl = acc.effectiveAvatarUrl;
-      }
       if (acc.token == null || acc.token!.isEmpty) {
         final savedTok = LocalStorageService.getAccountToken(acc.id) ??
             LocalStorageService.getString('token_${acc.id}') ??
@@ -89,37 +87,67 @@ class AccountProvider with ChangeNotifier {
       final meRes = await _profileApiService.fetchCurrentUser(accessToken: token);
       if (meRes.success && meRes.data is Map<String, dynamic>) {
         final data = meRes.data as Map<String, dynamic>;
-        final String firstName = data['firstName'] ?? '';
-        final String lastName = data['lastName'] ?? '';
-        final String fullName = ('$firstName $lastName').trim();
-        if (fullName.isNotEmpty) {
-          target.name = fullName;
-          target.displayName = fullName;
-        } else if (data['displayName'] != null && data['displayName'].toString().isNotEmpty) {
-          target.displayName = data['displayName'].toString();
-        }
-
-        // Only assign email if the target account has no email yet
         final apiEmail = data['email']?.toString().trim().toLowerCase();
-        if (target.email.isEmpty && apiEmail != null && apiEmail.isNotEmpty) {
-          target.email = apiEmail;
-        }
 
-        final String? rawPicUrl = data['profilePictureUrl'] ?? data['avatarUrl'] ?? data['avatar'] ?? data['profilePicture'];
-        if (rawPicUrl != null && rawPicUrl.isNotEmpty) {
-          final String fullPicUrl = rawPicUrl.startsWith('http')
-              ? rawPicUrl
-              : 'https://api.bnxmail.com${rawPicUrl.startsWith('/') ? '' : '/'}$rawPicUrl';
-          target.avatarUrl = fullPicUrl;
-        } else {
-          target.avatarUrl = target.effectiveAvatarUrl;
-        }
+        // Safety guard: only apply if apiEmail matches target.email (or if target.email is empty)
+        if (target.email.isEmpty ||
+            apiEmail == null ||
+            apiEmail.isEmpty ||
+            apiEmail == target.email.trim().toLowerCase()) {
+          final String firstName = data['firstName'] ?? '';
+          final String lastName = data['lastName'] ?? '';
+          final String fullName = ('$firstName $lastName').trim();
+          if (fullName.isNotEmpty) {
+            target.name = fullName;
+            target.displayName = fullName;
+          } else if (data['displayName'] != null &&
+              data['displayName'].toString().isNotEmpty) {
+            target.displayName = data['displayName'].toString();
+          }
 
-        if (data['accountType'] != null) {
-          final String typeStr = data['accountType'].toString().toUpperCase();
-          target.type = (typeStr == 'BUSINESS' || typeStr == 'ORG_ADMIN')
-              ? AccountType.business
-              : AccountType.personal;
+          if (target.email.isEmpty && apiEmail != null && apiEmail.isNotEmpty) {
+            target.email = apiEmail;
+          }
+
+          String? resolvedPic;
+          final pp = data['profilePicture']?.toString();
+          if (pp != null && pp.isNotEmpty && pp != 'null') {
+            if (pp.startsWith('data:image') || pp.contains(';base64,')) {
+              resolvedPic = pp;
+            } else if (pp.length > 100 && !pp.startsWith('/') && !pp.startsWith('http')) {
+              resolvedPic = pp.startsWith('data:') ? pp : 'data:image/png;base64,$pp';
+            }
+          }
+          if (resolvedPic == null) {
+            final av = data['avatarUrl']?.toString() ?? data['avatar']?.toString();
+            if (av != null && av.isNotEmpty && av != 'null') {
+              resolvedPic = av;
+            }
+          }
+          if (resolvedPic == null) {
+            final ppUrl = data['profilePictureUrl']?.toString();
+            if (ppUrl != null && ppUrl.isNotEmpty && ppUrl != 'null') {
+              resolvedPic = ppUrl;
+            }
+          }
+
+          if (resolvedPic != null &&
+              resolvedPic.isNotEmpty &&
+              resolvedPic != 'null') {
+            final String fullPicUrl = (resolvedPic.startsWith('http') || resolvedPic.startsWith('data:'))
+                ? resolvedPic
+                : 'https://api.bnxmail.com${resolvedPic.startsWith('/') ? '' : '/'}$resolvedPic';
+            target.avatarUrl = fullPicUrl;
+          } else {
+            target.avatarUrl = null;
+          }
+
+          if (data['accountType'] != null) {
+            final String typeStr = data['accountType'].toString().toUpperCase();
+            target.type = (typeStr == 'BUSINESS' || typeStr == 'ORG_ADMIN')
+                ? AccountType.business
+                : AccountType.personal;
+          }
         }
       }
 
@@ -194,6 +222,7 @@ class AccountProvider with ChangeNotifier {
       if (cleanEmail.isNotEmpty) {
         LocalStorageService.setString('active_email', cleanEmail);
         LocalStorageService.setString('token_$cleanEmail', accountToken);
+        TokenService.switchActiveAccountSession(cleanEmail);
       }
       LocalStorageService.setAccountToken(_selectedAccount!.id, accountToken);
 

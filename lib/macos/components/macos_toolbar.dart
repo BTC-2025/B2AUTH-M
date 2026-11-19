@@ -219,7 +219,13 @@ class MacOsToolbar extends StatelessWidget {
                                       child: Row(
                                         children: [
                                           ProfileAvatar(
-                                            letter: otherAcc.avatarLetter.isNotEmpty ? otherAcc.avatarLetter : 'R',
+                                            letter: otherAcc.avatarLetter.isNotEmpty
+                                                ? otherAcc.avatarLetter
+                                                : (otherAcc.name.isNotEmpty
+                                                    ? otherAcc.name[0].toUpperCase()
+                                                    : (otherAcc.email.isNotEmpty
+                                                        ? otherAcc.email[0].toUpperCase()
+                                                        : 'U')),
                                             imageUrl: otherAcc.effectiveAvatarUrl ?? otherAcc.avatarUrl,
                                             imagePath: otherAcc.profileImagePath,
                                             size: 32,
@@ -348,8 +354,14 @@ class MacOsToolbar extends StatelessWidget {
     final user = accountProvider.selectedAccount;
     final userName = user?.displayName.isNotEmpty == true
         ? user!.displayName
-        : (user?.name.isNotEmpty == true ? user!.name : 'Ravi Kumar C');
-    final avatarLetter = user?.avatarLetter.isNotEmpty == true ? user!.avatarLetter : 'R';
+        : (user?.name.isNotEmpty == true
+            ? user!.name
+            : (user?.email.isNotEmpty == true
+                ? user!.email.split('@').first
+                : 'User'));
+    final avatarLetter = user?.avatarLetter.isNotEmpty == true
+        ? user!.avatarLetter
+        : (userName.isNotEmpty ? userName[0].toUpperCase() : 'U');
 
     return Container(
       height: 64,

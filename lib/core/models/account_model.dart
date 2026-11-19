@@ -95,8 +95,38 @@ class AccountModel {
           json['designation']?.toString() ?? json['role']?.toString() ?? '',
       experience: json['experience']?.toString() ?? '',
       dob: dob,
-      avatarUrl: (json['avatarUrl']?.toString() ?? json['avatar']?.toString()) ??
-          (email.isNotEmpty ? '/api/users/profile-picture/$email' : null),
+      avatarUrl: () {
+        final pp = json['profilePicture']?.toString();
+        if (pp != null && pp.isNotEmpty && pp != 'null') {
+          if (pp.startsWith('data:image') || pp.contains(';base64,')) {
+            return pp;
+          }
+          if (pp.length > 100 && !pp.startsWith('/') && !pp.startsWith('http')) {
+            return pp.startsWith('data:') ? pp : 'data:image/png;base64,$pp';
+          }
+        }
+        final av = json['avatarUrl']?.toString() ?? json['avatar']?.toString();
+        if (av != null && av.isNotEmpty && av != 'null') {
+          if (av.startsWith('data:image') || av.contains(';base64,')) {
+            return av;
+          }
+        }
+        if (pp != null && pp.isNotEmpty && pp != 'null') {
+          if (pp.startsWith('http://') || pp.startsWith('https://') || pp.startsWith('/')) {
+            return pp;
+          }
+        }
+        if (av != null && av.isNotEmpty && av != 'null') {
+          if (av.startsWith('http://') || av.startsWith('https://') || av.startsWith('/')) {
+            return av;
+          }
+        }
+        final ppUrl = json['profilePictureUrl']?.toString();
+        if (ppUrl != null && ppUrl.isNotEmpty && ppUrl != 'null') {
+          return ppUrl;
+        }
+        return null;
+      }(),
       recoveryEmail: json['recoveryEmail']?.toString() ?? json['recovery_email']?.toString(),
       phone: json['phone']?.toString() ?? json['phoneNumber']?.toString(),
       accountType: json['accountType']?.toString() ?? 'BUSINESS',

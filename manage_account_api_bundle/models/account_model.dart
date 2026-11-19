@@ -16,6 +16,13 @@ class AccountModel {
   final String accountType;
   final String language;
   final String accessibility;
+  final String? nickname;
+  final String? displayName;
+  final String? gender;
+  final String? homeAddress;
+  final String? workAddress;
+  final String? occupation;
+  final String? bio;
 
   const AccountModel({
     required this.id,
@@ -33,6 +40,13 @@ class AccountModel {
     this.accountType = 'BUSINESS',
     this.language = 'English (US)',
     this.accessibility = 'Default',
+    this.nickname,
+    this.displayName,
+    this.gender,
+    this.homeAddress,
+    this.workAddress,
+    this.occupation,
+    this.bio,
   });
 
   String get avatarLetter => name.isNotEmpty ? name[0].toUpperCase() : '?';
@@ -78,19 +92,34 @@ class AccountModel {
       experience: json['experience']?.toString() ?? '',
       dob: dob,
       avatarUrl: () {
-        final ppUrl = json['profilePictureUrl']?.toString();
-        if (ppUrl != null && ppUrl.isNotEmpty && ppUrl != 'null') {
-          return ppUrl;
-        }
         final pp = json['profilePicture']?.toString();
         if (pp != null && pp.isNotEmpty && pp != 'null') {
-          if (pp.startsWith('/') || pp.startsWith('http')) return pp;
-          final userOrEmail = email.isNotEmpty ? email : (json['username']?.toString() ?? '');
-          return userOrEmail.isNotEmpty ? '/api/users/profile-picture/$userOrEmail' : pp;
+          if (pp.startsWith('data:image') || pp.contains(';base64,')) {
+            return pp;
+          }
+          if (pp.length > 100 && !pp.startsWith('/') && !pp.startsWith('http')) {
+            return pp.startsWith('data:') ? pp : 'data:image/png;base64,$pp';
+          }
         }
         final av = json['avatarUrl']?.toString() ?? json['avatar']?.toString();
         if (av != null && av.isNotEmpty && av != 'null') {
-          return av;
+          if (av.startsWith('data:image') || av.contains(';base64,')) {
+            return av;
+          }
+        }
+        if (pp != null && pp.isNotEmpty && pp != 'null') {
+          if (pp.startsWith('http://') || pp.startsWith('https://') || pp.startsWith('/')) {
+            return pp;
+          }
+        }
+        if (av != null && av.isNotEmpty && av != 'null') {
+          if (av.startsWith('http://') || av.startsWith('https://') || av.startsWith('/')) {
+            return av;
+          }
+        }
+        final ppUrl = json['profilePictureUrl']?.toString();
+        if (ppUrl != null && ppUrl.isNotEmpty && ppUrl != 'null') {
+          return ppUrl;
         }
         return null;
       }(),
@@ -99,6 +128,13 @@ class AccountModel {
       accountType: json['accountType']?.toString() ?? 'BUSINESS',
       language: json['language']?.toString() ?? 'English (US)',
       accessibility: json['accessibility']?.toString() ?? 'Default',
+      nickname: json['nickname']?.toString(),
+      displayName: json['displayName']?.toString() ?? json['display_name']?.toString(),
+      gender: json['gender']?.toString(),
+      homeAddress: json['homeAddress']?.toString() ?? json['home_address']?.toString(),
+      workAddress: json['workAddress']?.toString() ?? json['work_address']?.toString() ?? json['location']?.toString(),
+      occupation: json['occupation']?.toString() ?? json['jobTitle']?.toString() ?? json['role']?.toString(),
+      bio: json['bio']?.toString(),
     );
   }
 
@@ -160,6 +196,13 @@ class AccountModel {
     String? accountType,
     String? language,
     String? accessibility,
+    String? nickname,
+    String? displayName,
+    String? gender,
+    String? homeAddress,
+    String? workAddress,
+    String? occupation,
+    String? bio,
   }) {
     return AccountModel(
       id: id ?? this.id,
@@ -177,6 +220,13 @@ class AccountModel {
       accountType: accountType ?? this.accountType,
       language: language ?? this.language,
       accessibility: accessibility ?? this.accessibility,
+      nickname: nickname ?? this.nickname,
+      displayName: displayName ?? this.displayName,
+      gender: gender ?? this.gender,
+      homeAddress: homeAddress ?? this.homeAddress,
+      workAddress: workAddress ?? this.workAddress,
+      occupation: occupation ?? this.occupation,
+      bio: bio ?? this.bio,
     );
   }
 }

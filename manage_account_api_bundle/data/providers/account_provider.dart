@@ -63,10 +63,15 @@ class AccountsNotifier extends StateNotifier<List<AccountModel>> {
           ? savedAvatar
           : ((isCurrentActive &&
                     userProfile != null &&
+                    userProfile.email.trim().toLowerCase() == regEmail &&
                     userProfile.avatarUrl != null &&
                     userProfile.avatarUrl!.isNotEmpty)
                 ? userProfile.avatarUrl
-                : matchingLocal.avatarUrl);
+                : ((matchingLocal.email.trim().toLowerCase() == regEmail &&
+                        matchingLocal.avatarUrl != null &&
+                        matchingLocal.avatarUrl!.isNotEmpty)
+                    ? matchingLocal.avatarUrl
+                    : null));
 
       final phone = cachedSettings['phoneNumber']?.toString() ??
           cachedSettings['phone']?.toString() ??
@@ -77,6 +82,13 @@ class AccountsNotifier extends StateNotifier<List<AccountModel>> {
           (matchingLocal.recoveryEmail?.isNotEmpty == true ? matchingLocal.recoveryEmail : null);
       final dobStr = cachedSettings['dob']?.toString();
       final dob = dobStr != null ? DateTime.tryParse(dobStr) : null;
+      final nick = cachedSettings['nickname']?.toString();
+      final disp = cachedSettings['displayName']?.toString();
+      final gen = cachedSettings['gender']?.toString();
+      final home = cachedSettings['homeAddress']?.toString();
+      final work = (cachedSettings['workAddress'] ?? cachedSettings['location'])?.toString();
+      final occ = (cachedSettings['occupation'] ?? cachedSettings['jobTitle'])?.toString();
+      final bio = cachedSettings['bio']?.toString();
 
       mergedList.add(
         AccountModel(
@@ -95,6 +107,13 @@ class AccountsNotifier extends StateNotifier<List<AccountModel>> {
           phone: phone,
           recoveryEmail: recovery,
           dob: dob,
+          nickname: (nick != null && nick.isNotEmpty) ? nick : null,
+          displayName: (disp != null && disp.isNotEmpty) ? disp : null,
+          gender: (gen != null && gen.isNotEmpty) ? gen : null,
+          homeAddress: (home != null && home.isNotEmpty) ? home : null,
+          workAddress: (work != null && work.isNotEmpty) ? work : null,
+          occupation: (occ != null && occ.isNotEmpty) ? occ : null,
+          bio: (bio != null && bio.isNotEmpty) ? bio : null,
         ),
       );
     }
@@ -121,6 +140,13 @@ class AccountsNotifier extends StateNotifier<List<AccountModel>> {
                 acc.recoveryEmail;
             final dobStr = cachedSettings['dob']?.toString();
             final dob = dobStr != null ? DateTime.tryParse(dobStr) : acc.dob;
+            final nick = cachedSettings['nickname']?.toString();
+            final disp = cachedSettings['displayName']?.toString();
+            final gen = cachedSettings['gender']?.toString();
+            final home = cachedSettings['homeAddress']?.toString();
+            final work = (cachedSettings['workAddress'] ?? cachedSettings['location'])?.toString();
+            final occ = (cachedSettings['occupation'] ?? cachedSettings['jobTitle'])?.toString();
+            final bio = cachedSettings['bio']?.toString();
 
             mergedList.add(
               acc.copyWith(
@@ -130,6 +156,13 @@ class AccountsNotifier extends StateNotifier<List<AccountModel>> {
                 phone: phone,
                 recoveryEmail: recovery,
                 dob: dob,
+                nickname: (nick != null && nick.isNotEmpty) ? nick : acc.nickname,
+                displayName: (disp != null && disp.isNotEmpty) ? disp : acc.displayName,
+                gender: (gen != null && gen.isNotEmpty) ? gen : acc.gender,
+                homeAddress: (home != null && home.isNotEmpty) ? home : acc.homeAddress,
+                workAddress: (work != null && work.isNotEmpty) ? work : acc.workAddress,
+                occupation: (occ != null && occ.isNotEmpty) ? occ : acc.occupation,
+                bio: (bio != null && bio.isNotEmpty) ? bio : acc.bio,
               ),
             );
           }
@@ -152,6 +185,13 @@ class AccountsNotifier extends StateNotifier<List<AccountModel>> {
           userProfile?.recoveryEmail;
       final dobStr = cachedSettings['dob']?.toString();
       final dob = dobStr != null ? DateTime.tryParse(dobStr) : null;
+      final nick = cachedSettings['nickname']?.toString();
+      final disp = cachedSettings['displayName']?.toString();
+      final gen = cachedSettings['gender']?.toString();
+      final home = cachedSettings['homeAddress']?.toString();
+      final work = (cachedSettings['workAddress'] ?? cachedSettings['location'])?.toString();
+      final occ = (cachedSettings['occupation'] ?? cachedSettings['jobTitle'])?.toString();
+      final bio = cachedSettings['bio']?.toString();
 
       mergedList.add(
         AccountModel(
@@ -166,6 +206,13 @@ class AccountsNotifier extends StateNotifier<List<AccountModel>> {
           phone: phone,
           recoveryEmail: recovery,
           dob: dob,
+          nickname: (nick != null && nick.isNotEmpty) ? nick : null,
+          displayName: (disp != null && disp.isNotEmpty) ? disp : null,
+          gender: (gen != null && gen.isNotEmpty) ? gen : null,
+          homeAddress: (home != null && home.isNotEmpty) ? home : null,
+          workAddress: (work != null && work.isNotEmpty) ? work : null,
+          occupation: (occ != null && occ.isNotEmpty) ? occ : null,
+          bio: (bio != null && bio.isNotEmpty) ? bio : null,
         ),
       );
     }
@@ -205,6 +252,7 @@ class AccountsNotifier extends StateNotifier<List<AccountModel>> {
     await TokenService.switchActiveAccountSession(cleanId);
 
     final cached = await TokenService.getUserSettings(cleanId);
+    final targetAvatar = await TokenService.getUserAvatar(cleanId);
     final phone = (cached?['phoneNumber'] ?? cached?['phone'])?.toString();
     final recEmail = cached?['recoveryEmail']?.toString();
     DateTime? dob;
@@ -212,13 +260,23 @@ class AccountsNotifier extends StateNotifier<List<AccountModel>> {
       dob = DateTime.tryParse((cached!['dob'] ?? cached['birthday']).toString());
     }
     final name = (cached?['fullName'] ?? cached?['name'])?.toString();
+    final nick = cached?['nickname']?.toString();
+    final disp = cached?['displayName']?.toString();
+    final gen = cached?['gender']?.toString();
+    final home = cached?['homeAddress']?.toString();
+    final work = (cached?['workAddress'] ?? cached?['location'])?.toString();
+    final occ = (cached?['occupation'] ?? cached?['jobTitle'])?.toString();
+    final bio = cached?['bio']?.toString();
+    final avatarToSet = (targetAvatar != null && targetAvatar.isNotEmpty)
+        ? targetAvatar
+        : ((cached?['avatarUrl'] ?? cached?['profilePictureUrl'])?.toString());
 
     // 2. Update account list state immediately so activeAccount is up to date
     state = state.map((acc) {
       final accEmail = acc.email.trim().toLowerCase();
       final accId = acc.id.trim().toLowerCase();
       final isTarget = (accEmail == cleanId || accId == cleanId);
-      if (isTarget && cached != null) {
+      if (isTarget) {
         return acc.copyWith(
           isActive: true,
           phone: (phone != null && phone.isNotEmpty) ? phone : acc.phone,
@@ -227,9 +285,17 @@ class AccountsNotifier extends StateNotifier<List<AccountModel>> {
               : acc.recoveryEmail,
           dob: dob ?? acc.dob,
           name: (name != null && name.isNotEmpty) ? name : acc.name,
+          avatarUrl: avatarToSet,
+          nickname: (nick != null && nick.isNotEmpty) ? nick : acc.nickname,
+          displayName: (disp != null && disp.isNotEmpty) ? disp : acc.displayName,
+          gender: (gen != null && gen.isNotEmpty) ? gen : acc.gender,
+          homeAddress: (home != null && home.isNotEmpty) ? home : acc.homeAddress,
+          workAddress: (work != null && work.isNotEmpty) ? work : acc.workAddress,
+          occupation: (occ != null && occ.isNotEmpty) ? occ : acc.occupation,
+          bio: (bio != null && bio.isNotEmpty) ? bio : acc.bio,
         );
       }
-      return acc.copyWith(isActive: isTarget);
+      return acc.copyWith(isActive: false);
     }).toList();
 
     // 3. Clear state caches and invalidate settings for the new account
@@ -326,6 +392,13 @@ class AccountsNotifier extends StateNotifier<List<AccountModel>> {
     String? designation,
     DateTime? dob,
     String? avatarUrl,
+    String? nickname,
+    String? displayName,
+    String? gender,
+    String? homeAddress,
+    String? workAddress,
+    String? occupation,
+    String? bio,
   }) async {
     final cleanId = id.trim().toLowerCase();
     state = state.map((acc) {
@@ -342,13 +415,20 @@ class AccountsNotifier extends StateNotifier<List<AccountModel>> {
           designation: designation ?? acc.designation,
           dob: dob ?? acc.dob,
           avatarUrl: avatarUrl ?? acc.avatarUrl,
+          nickname: nickname ?? acc.nickname,
+          displayName: displayName ?? acc.displayName,
+          gender: gender ?? acc.gender,
+          homeAddress: homeAddress ?? acc.homeAddress,
+          workAddress: workAddress ?? acc.workAddress,
+          occupation: occupation ?? acc.occupation,
+          bio: bio ?? acc.bio,
         );
       }
       return acc;
     }).toList();
 
     final active = state.firstWhere(
-      (a) => a.id == id,
+      (a) => a.id.trim().toLowerCase() == cleanId || a.email.trim().toLowerCase() == cleanId,
       orElse: () => activeAccount,
     );
     if (name != null && active.email.isNotEmpty) {
@@ -356,17 +436,30 @@ class AccountsNotifier extends StateNotifier<List<AccountModel>> {
     }
 
     try {
-      await UserRepository.updateProfile({
-        'name': ?name,
-        'recoveryEmail': ?recoveryEmail,
-        'phone': ?phone,
-        'accountType': ?accountType,
-        'language': ?language,
-        'accessibility': ?accessibility,
-        'designation': ?designation,
-        if (dob != null) 'dob': dob.toIso8601String(),
-        'email': active.email,
-      });
+      final payload = <String, dynamic>{};
+      if (name != null) {
+        payload['name'] = name;
+        payload['fullName'] = name;
+      }
+      if (recoveryEmail != null) payload['recoveryEmail'] = recoveryEmail;
+      if (phone != null) {
+        payload['phoneNumber'] = phone;
+        payload['phone'] = phone;
+      }
+      if (accountType != null) payload['accountType'] = accountType;
+      if (language != null) payload['language'] = language;
+      if (accessibility != null) payload['accessibility'] = accessibility;
+      if (designation != null) payload['designation'] = designation;
+      if (nickname != null) payload['nickname'] = nickname;
+      if (displayName != null) payload['displayName'] = displayName;
+      if (gender != null) payload['gender'] = gender;
+      if (homeAddress != null) payload['homeAddress'] = homeAddress;
+      if (workAddress != null) payload['workAddress'] = workAddress;
+      if (occupation != null) payload['occupation'] = occupation;
+      if (bio != null) payload['bio'] = bio;
+      if (dob != null) payload['dob'] = dob.toIso8601String();
+
+      await UserRepository.updateProfile(payload, email: active.email);
     } catch (e) {
       print('[PROFILE SYNC ERROR] Failed to update backend profile: $e');
     }
