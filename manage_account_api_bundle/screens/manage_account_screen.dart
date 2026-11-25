@@ -326,7 +326,9 @@ class _ManageAccountScreenState extends ConsumerState<ManageAccountScreen> {
             child: ConstrainedBox(
               constraints: const BoxConstraints(maxWidth: 440),
               child: Padding(
-                padding: const EdgeInsets.all(24),
+                padding: EdgeInsets.all(
+        MediaQuery.of(context).size.width < 600 ? 16 : 24,
+      ),
                 child: Column(
                   mainAxisSize: MainAxisSize.min,
                   crossAxisAlignment: CrossAxisAlignment.start,
@@ -608,7 +610,9 @@ class _ManageAccountScreenState extends ConsumerState<ManageAccountScreen> {
               child: ConstrainedBox(
                 constraints: const BoxConstraints(maxWidth: 440),
                 child: Padding(
-                  padding: const EdgeInsets.all(24),
+                  padding: EdgeInsets.all(
+        MediaQuery.of(context).size.width < 600 ? 16 : 24,
+      ),
                   child: SingleChildScrollView(
                     child: Column(
                       mainAxisSize: MainAxisSize.min,
@@ -1062,7 +1066,9 @@ class _ManageAccountScreenState extends ConsumerState<ManageAccountScreen> {
               constraints: const BoxConstraints(maxWidth: 480),
               child: SingleChildScrollView(
                 child: Padding(
-                  padding: const EdgeInsets.all(24),
+                  padding: EdgeInsets.all(
+        MediaQuery.of(context).size.width < 600 ? 16 : 24,
+      ),
                   child: Column(
                     mainAxisSize: MainAxisSize.min,
                     crossAxisAlignment: CrossAxisAlignment.start,
@@ -3469,7 +3475,9 @@ class _ManageAccountScreenState extends ConsumerState<ManageAccountScreen> {
           onTap: onAction,
           borderRadius: BorderRadius.circular(16),
           child: Padding(
-            padding: const EdgeInsets.all(24),
+            padding: EdgeInsets.all(
+        MediaQuery.of(context).size.width < 600 ? 16 : 24,
+      ),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
@@ -3971,7 +3979,9 @@ class _ManageAccountScreenState extends ConsumerState<ManageAccountScreen> {
           color: isDark ? const Color(0xFF3C4043) : const Color(0xFFDADCE0),
         ),
       ),
-      padding: const EdgeInsets.all(24),
+      padding: EdgeInsets.all(
+        MediaQuery.of(context).size.width < 600 ? 16 : 24,
+      ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
@@ -4088,7 +4098,9 @@ class _ManageAccountScreenState extends ConsumerState<ManageAccountScreen> {
               color: isDark ? const Color(0xFF3C4043) : const Color(0xFFDADCE0),
             ),
           ),
-          padding: const EdgeInsets.all(24),
+          padding: EdgeInsets.all(
+        MediaQuery.of(context).size.width < 600 ? 16 : 24,
+      ),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
@@ -4143,31 +4155,36 @@ class _ManageAccountScreenState extends ConsumerState<ManageAccountScreen> {
                         mainAxisAlignment: MainAxisAlignment.spaceBetween,
                         crossAxisAlignment: CrossAxisAlignment.center,
                         children: [
-                          Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              const Text(
-                                'ACTIVE PLAN',
-                                style: TextStyle(
-                                  fontSize: 11,
-                                  fontWeight: FontWeight.w700,
-                                  color: Color(0xFF1A73E8),
-                                  letterSpacing: 0.5,
+                          Expanded(
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                const Text(
+                                  'ACTIVE PLAN',
+                                  style: TextStyle(
+                                    fontSize: 11,
+                                    fontWeight: FontWeight.w700,
+                                    color: Color(0xFF1A73E8),
+                                    letterSpacing: 0.5,
+                                  ),
                                 ),
-                              ),
-                              const SizedBox(height: 4),
-                              Text(
-                                planName,
-                                style: TextStyle(
-                                  fontSize: 24,
-                                  fontWeight: FontWeight.bold,
-                                  color: isDark
-                                      ? Colors.white
-                                      : const Color(0xFF202124),
+                                const SizedBox(height: 4),
+                                Text(
+                                  planName,
+                                  maxLines: 1,
+                                  overflow: TextOverflow.ellipsis,
+                                  style: TextStyle(
+                                    fontSize: 24,
+                                    fontWeight: FontWeight.bold,
+                                    color: isDark
+                                        ? Colors.white
+                                        : const Color(0xFF202124),
+                                  ),
                                 ),
-                              ),
-                            ],
+                              ],
+                            ),
                           ),
+                          const SizedBox(width: 8),
                           // Active / Status Chip
                           Container(
                             padding: const EdgeInsets.symmetric(
@@ -4990,17 +5007,22 @@ class _ManageAccountScreenState extends ConsumerState<ManageAccountScreen> {
                   Row(
                     mainAxisAlignment: MainAxisAlignment.spaceBetween,
                     children: [
-                      Text(
-                        usedText,
-                        style: TextStyle(
-                          fontSize: 14,
-                          fontWeight: FontWeight.w600,
-                          color: isDark
-                              ? Colors.white
-                              : const Color(0xFF202124),
+                      Expanded(
+                        child: Text(
+                          usedText,
+                          maxLines: 2,
+                          overflow: TextOverflow.ellipsis,
+                          style: TextStyle(
+                            fontSize: 14,
+                            fontWeight: FontWeight.w600,
+                            color: isDark
+                                ? Colors.white
+                                : const Color(0xFF202124),
+                          ),
                         ),
                       ),
-                      if (quota != null)
+                      if (quota != null) ...[
+                        const SizedBox(width: 8),
                         Container(
                           padding: const EdgeInsets.symmetric(
                             horizontal: 8,
@@ -5019,6 +5041,7 @@ class _ManageAccountScreenState extends ConsumerState<ManageAccountScreen> {
                             ),
                           ),
                         ),
+                      ],
                     ],
                   ),
                 ],
@@ -5087,10 +5110,19 @@ class _ManageAccountScreenState extends ConsumerState<ManageAccountScreen> {
               isDark: isDark,
               icon: Icons.security_rounded,
               label: '2-STEP VERIFICATION',
-              valueWidget: Row(
+              valueWidget: Wrap(
+                crossAxisAlignment: WrapCrossAlignment.center,
+                spacing: 8,
+                runSpacing: 4,
                 children: [
-                  Text(is2Fa ? 'On' : 'Off'),
-                  const SizedBox(width: 8),
+                  Text(
+                    is2Fa ? 'On' : 'Off',
+                    style: TextStyle(
+                      fontSize: 14,
+                      fontWeight: FontWeight.w400,
+                      color: isDark ? Colors.white : const Color(0xFF202124),
+                    ),
+                  ),
                   Container(
                     padding: const EdgeInsets.symmetric(
                       horizontal: 8,
@@ -5177,45 +5209,61 @@ class _ManageAccountScreenState extends ConsumerState<ManageAccountScreen> {
                 final title = s['title'] ?? 'Session';
                 final ip = s['ip'] ?? '';
                 final isCurrent = s['currentSession'] == 'true';
+                final rawTime = s['lastActive'] ?? 'Active';
+                String formattedTime = rawTime;
+                if (rawTime != 'Active' && rawTime.isNotEmpty) {
+                  final parsed = DateTime.tryParse(rawTime);
+                  if (parsed != null) {
+                    formattedTime =
+                        '${parsed.year}-${parsed.month.toString().padLeft(2, '0')}-${parsed.day.toString().padLeft(2, '0')} ${parsed.hour.toString().padLeft(2, '0')}:${parsed.minute.toString().padLeft(2, '0')}';
+                  }
+                }
                 return _SettingRow(
                   isDark: isDark,
                   icon: Icons.devices_rounded,
                   label: title,
                   showChevron: false,
                   valueWidget: Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
                     children: [
-                      Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Text(
-                            ip,
-                            style: TextStyle(
-                              fontSize: 13,
-                              color: isDark
-                                  ? Colors.white70
-                                  : const Color(0xFF3C4043),
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              ip,
+                              maxLines: 2,
+                              overflow: TextOverflow.ellipsis,
+                              style: TextStyle(
+                                fontSize: 13,
+                                color: isDark
+                                    ? Colors.white70
+                                    : const Color(0xFF3C4043),
+                              ),
                             ),
-                          ),
-                          Text(
-                            isCurrent
-                                ? 'Current Session • Active Now'
-                                : (s['lastActive'] ?? 'Active'),
-                            style: TextStyle(
-                              fontSize: 11,
-                              color: isCurrent
-                                  ? const Color(0xFF1E8E3E)
-                                  : (isDark
-                                        ? Colors.white38
-                                        : const Color(0xFF80868B)),
-                              fontWeight: isCurrent
-                                  ? FontWeight.w600
-                                  : FontWeight.normal,
+                            const SizedBox(height: 2),
+                            Text(
+                              isCurrent
+                                  ? 'Current Session • Active Now'
+                                  : formattedTime,
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                              style: TextStyle(
+                                fontSize: 11,
+                                color: isCurrent
+                                    ? const Color(0xFF1E8E3E)
+                                    : (isDark
+                                          ? Colors.white38
+                                          : const Color(0xFF80868B)),
+                                fontWeight: isCurrent
+                                    ? FontWeight.w600
+                                    : FontWeight.normal,
+                              ),
                             ),
-                          ),
-                        ],
+                          ],
+                        ),
                       ),
-                      if (!isCurrent && id.isNotEmpty)
+                      if (!isCurrent && id.isNotEmpty) ...[
+                        const SizedBox(width: 8),
                         TextButton(
                           onPressed: () async {
                             final ok = await UserRepository.revokeSession(
@@ -5235,11 +5283,23 @@ class _ManageAccountScreenState extends ConsumerState<ManageAccountScreen> {
                               }
                             }
                           },
+                          style: TextButton.styleFrom(
+                            padding: const EdgeInsets.symmetric(
+                              horizontal: 10,
+                              vertical: 4,
+                            ),
+                            minimumSize: Size.zero,
+                            tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                          ),
                           child: const Text(
                             'Revoke',
-                            style: TextStyle(color: Colors.redAccent),
+                            style: TextStyle(
+                              color: Colors.redAccent,
+                              fontWeight: FontWeight.w600,
+                            ),
                           ),
                         ),
+                      ],
                     ],
                   ),
                   showDivider: s != _activeSessions.last,
@@ -5297,23 +5357,27 @@ class _ManageAccountScreenState extends ConsumerState<ManageAccountScreen> {
                   label: activity,
                   showChevron: false,
                   valueWidget: Column(
-                    crossAxisAlignment: CrossAxisAlignment.end,
+                    crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       if (details.isNotEmpty)
                         Text(
                           details,
+                          maxLines: 2,
+                          overflow: TextOverflow.ellipsis,
                           style: TextStyle(
                             fontSize: 12.5,
                             color: isDark
                                 ? Colors.white70
                                 : const Color(0xFF3C4043),
                           ),
-                          textAlign: TextAlign.end,
                         ),
-                      Row(
-                        mainAxisSize: MainAxisSize.min,
+                      const SizedBox(height: 2),
+                      Wrap(
+                        crossAxisAlignment: WrapCrossAlignment.center,
+                        spacing: 8,
+                        runSpacing: 2,
                         children: [
-                          if (ip.isNotEmpty) ...[
+                          if (ip.isNotEmpty)
                             Text(
                               'IP: $ip',
                               style: TextStyle(
@@ -5323,8 +5387,6 @@ class _ManageAccountScreenState extends ConsumerState<ManageAccountScreen> {
                                     : const Color(0xFF80868B),
                               ),
                             ),
-                            const SizedBox(width: 8),
-                          ],
                           if (displayTime.isNotEmpty)
                             Text(
                               displayTime,
@@ -5917,6 +5979,8 @@ class _SettingRowState extends State<_SettingRow> {
                       children: [
                         Text(
                           widget.label,
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
                           style: TextStyle(
                             fontSize: 11,
                             fontWeight: FontWeight.w600,
