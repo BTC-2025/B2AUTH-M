@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
 import 'package:uuid/uuid.dart';
 import '../../core/models/user_account.dart';
@@ -251,6 +252,7 @@ class _MacOsLoginViewState extends State<MacOsLoginView> {
     showDialog(
       context: context,
       builder: (ctx) => AlertDialog(
+        scrollable: true,
         shape: RoundedRectangleBorder(
           borderRadius: BorderRadius.circular(MacOsTheme.radiusMedium),
         ),
@@ -260,29 +262,36 @@ class _MacOsLoginViewState extends State<MacOsLoginView> {
         ),
         content: SizedBox(
           width: 340,
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: accounts.map((acc) {
-              return ListTile(
-                dense: true,
-                leading: CircleAvatar(
-                  backgroundColor: const Color(0xFF6B46C1),
-                  child: Text(
-                    acc.avatarLetter,
-                    style: const TextStyle(color: Colors.white, fontWeight: FontWeight.w600),
-                  ),
-                ),
-                title: Text(acc.displayName.isNotEmpty ? acc.displayName : acc.name),
-                subtitle: Text(acc.email),
-                onTap: () {
-                  accountProvider.switchAccount(acc.id);
-                  Navigator.pop(ctx);
-                  Navigator.of(context).pushReplacement(
-                    MaterialPageRoute(builder: (_) => const HomeScreen()),
+          child: ConstrainedBox(
+            constraints: BoxConstraints(
+              maxHeight: MediaQuery.of(context).size.height * 0.6,
+            ),
+            child: SingleChildScrollView(
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: accounts.map((acc) {
+                  return ListTile(
+                    dense: true,
+                    leading: CircleAvatar(
+                      backgroundColor: const Color(0xFF6B46C1),
+                      child: Text(
+                        acc.avatarLetter,
+                        style: const TextStyle(color: Colors.white, fontWeight: FontWeight.w600),
+                      ),
+                    ),
+                    title: Text(acc.displayName.isNotEmpty ? acc.displayName : acc.name),
+                    subtitle: Text(acc.email),
+                    onTap: () {
+                      accountProvider.switchAccount(acc.id);
+                      Navigator.pop(ctx);
+                      Navigator.of(context).pushReplacement(
+                        MaterialPageRoute(builder: (_) => const HomeScreen()),
+                      );
+                    },
                   );
-                },
-              );
-            }).toList(),
+                }).toList(),
+              ),
+            ),
           ),
         ),
       ),
@@ -294,6 +303,7 @@ class _MacOsLoginViewState extends State<MacOsLoginView> {
     showDialog(
       context: context,
       builder: (ctx) => AlertDialog(
+        scrollable: true,
         shape: RoundedRectangleBorder(
           borderRadius: BorderRadius.circular(MacOsTheme.radiusMedium),
         ),
@@ -350,318 +360,367 @@ class _MacOsLoginViewState extends State<MacOsLoginView> {
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      backgroundColor: const Color(0xFFEBF2FA),
-      body: Center(
-        child: SingleChildScrollView(
-          padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 32),
-          child: ConstrainedBox(
-            constraints: const BoxConstraints(maxWidth: 440),
-            child: Container(
-              decoration: BoxDecoration(
-                color: Colors.white,
-                borderRadius: BorderRadius.circular(24),
-                border: Border.all(color: const Color(0xFFE2E8F0), width: 1.0),
-                boxShadow: [
-                  BoxShadow(
-                    color: Colors.black.withValues(alpha: 0.05),
-                    blurRadius: 24,
-                    offset: const Offset(0, 10),
-                  ),
-                ],
+    final screenWidth = MediaQuery.of(context).size.width;
+    final isCompact = screenWidth < 500;
+    final canPop = Navigator.canPop(context);
+
+    return PopScope(
+      canPop: canPop,
+      onPopInvokedWithResult: (didPop, _) {
+        if (!didPop && !canPop) {
+          SystemNavigator.pop();
+        }
+      },
+      child: Scaffold(
+        backgroundColor: const Color(0xFFEBF2FA),
+        body: SafeArea(
+          child: Center(
+            child: SingleChildScrollView(
+              physics: const ClampingScrollPhysics(),
+              padding: EdgeInsets.symmetric(
+                horizontal: isCompact ? 16 : 24,
+                vertical: isCompact ? 16 : 32,
               ),
-              padding: const EdgeInsets.symmetric(horizontal: 36, vertical: 32),
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  // 1. Back Button
-                  MouseRegion(
-                    cursor: SystemMouseCursors.click,
-                    child: GestureDetector(
-                      onTap: () {
-                        if (Navigator.canPop(context)) {
-                          Navigator.pop(context);
-                        }
-                      },
-                      child: Row(
-                        mainAxisSize: MainAxisSize.min,
-                        children: const [
-                          Icon(
-                            Icons.arrow_back_ios_new_rounded,
-                            size: 13,
-                            color: Color(0xFF64748B),
-                          ),
-                          SizedBox(width: 6),
-                          Text(
-                            'Back',
-                            style: TextStyle(
-                              fontSize: 13.5,
-                              fontWeight: FontWeight.w500,
-                              color: Color(0xFF64748B),
+              child: ConstrainedBox(
+                constraints: const BoxConstraints(maxWidth: 440),
+                child: Container(
+                  decoration: BoxDecoration(
+                    color: Colors.white,
+                    borderRadius: BorderRadius.circular(isCompact ? 20 : 24),
+                    border: Border.all(color: const Color(0xFFE2E8F0), width: 1.0),
+                    boxShadow: [
+                      BoxShadow(
+                        color: Colors.black.withValues(alpha: 0.05),
+                        blurRadius: 24,
+                        offset: const Offset(0, 10),
+                      ),
+                    ],
+                  ),
+                  padding: EdgeInsets.symmetric(
+                    horizontal: isCompact ? 20 : 36,
+                    vertical: isCompact ? 24 : 32,
+                  ),
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      // 1. Back Button (hidden on root screen, only shown if navigated from another screen)
+                      if (canPop) ...[
+                        MouseRegion(
+                          cursor: SystemMouseCursors.click,
+                          child: GestureDetector(
+                            onTap: () {
+                              if (Navigator.canPop(context)) {
+                                Navigator.pop(context);
+                              }
+                            },
+                            child: const Padding(
+                              padding: EdgeInsets.only(bottom: 12),
+                              child: Row(
+                                mainAxisSize: MainAxisSize.min,
+                                children: [
+                                  Icon(
+                                    Icons.arrow_back_ios_new_rounded,
+                                    size: 13,
+                                    color: Color(0xFF64748B),
+                                  ),
+                                  SizedBox(width: 6),
+                                  Text(
+                                    'Back',
+                                    style: TextStyle(
+                                      fontSize: 13.5,
+                                      fontWeight: FontWeight.w500,
+                                      color: Color(0xFF64748B),
+                                    ),
+                                  ),
+                                ],
+                              ),
                             ),
                           ),
-                        ],
+                        ),
+                      ],
+
+                      // 2. Centered Logo and Heading
+                      Center(
+                        child: Column(
+                          children: [
+                            // Stylized "B" Logo
+                            ClipRRect(
+                              borderRadius: BorderRadius.circular(8),
+                              child: Image.asset(
+                                'assets/beta_logo .jpg',
+                                height: isCompact ? 42 : 48,
+                                fit: BoxFit.contain,
+                                errorBuilder: (_, _, _) => Image.asset(
+                                  'assets/Auth_img.png',
+                                  height: isCompact ? 42 : 48,
+                                  fit: BoxFit.contain,
+                                  errorBuilder: (_, _, _) => Icon(
+                                    Icons.shield_rounded,
+                                    size: isCompact ? 42 : 48,
+                                    color: MacOsTheme.brandBlue,
+                                  ),
+                                ),
+                              ),
+                            ),
+                            SizedBox(height: isCompact ? 12 : 16),
+                            Text(
+                              'Sign in to B2Auth',
+                              style: TextStyle(
+                                fontSize: isCompact ? 20 : 22,
+                                fontWeight: FontWeight.w800,
+                                color: const Color(0xFF1E293B),
+                                letterSpacing: -0.4,
+                              ),
+                            ),
+                            const SizedBox(height: 4),
+                            const Text(
+                              'Use your BETA Account',
+                              style: TextStyle(
+                                fontSize: 13,
+                                fontWeight: FontWeight.w500,
+                                color: Color(0xFF64748B),
+                              ),
+                            ),
+                          ],
+                        ),
                       ),
-                    ),
-                  ),
 
-                  const SizedBox(height: 12),
+                      SizedBox(height: isCompact ? 20 : 28),
 
-                  // 2. Centered Logo and Heading
-                  Center(
-                    child: Column(
-                      children: [
-                        // Stylized "B" Logo
-                        ClipRRect(
-                          borderRadius: BorderRadius.circular(8),
-                          child: Image.asset(
-                            'assets/beta_logo .jpg',
-                            height: 48,
-                            fit: BoxFit.contain,
-                            errorBuilder: (_, _, _) => Image.asset(
-                              'assets/Auth_img.png',
-                              height: 48,
-                              fit: BoxFit.contain,
-                              errorBuilder: (_, _, _) => const Icon(
-                                Icons.shield_rounded,
-                                size: 48,
+                      // 3. Email Input Field
+                      const Text(
+                        'Email:',
+                        style: TextStyle(
+                          fontSize: 13,
+                          fontWeight: FontWeight.w600,
+                          color: Color(0xFF1E293B),
+                        ),
+                      ),
+                      const SizedBox(height: 6),
+                      Container(
+                        height: 46,
+                        decoration: BoxDecoration(
+                          color: const Color(0xFFEBF2FD),
+                          borderRadius: BorderRadius.circular(10),
+                        ),
+                        padding: const EdgeInsets.symmetric(horizontal: 14),
+                        alignment: Alignment.centerLeft,
+                        child: TextField(
+                          controller: _emailController,
+                          style: const TextStyle(
+                            fontSize: 14,
+                            fontWeight: FontWeight.w500,
+                            color: Color(0xFF1E293B),
+                          ),
+                          decoration: const InputDecoration(
+                            border: InputBorder.none,
+                            isDense: true,
+                            contentPadding: EdgeInsets.zero,
+                            hintText: 'user@example.com',
+                            hintStyle: TextStyle(
+                              color: Color(0xFF94A3B8),
+                              fontSize: 14,
+                            ),
+                          ),
+                        ),
+                      ),
+
+                      const SizedBox(height: 18),
+
+                      // 4. Password Input Field
+                      const Text(
+                        'Password:',
+                        style: TextStyle(
+                          fontSize: 13,
+                          fontWeight: FontWeight.w600,
+                          color: Color(0xFF1E293B),
+                        ),
+                      ),
+                      const SizedBox(height: 6),
+                      Container(
+                        height: 46,
+                        decoration: BoxDecoration(
+                          color: const Color(0xFFEBF2FD),
+                          borderRadius: BorderRadius.circular(10),
+                        ),
+                        padding: const EdgeInsets.symmetric(horizontal: 14),
+                        alignment: Alignment.centerLeft,
+                        child: Row(
+                          children: [
+                            Expanded(
+                              child: TextField(
+                                controller: _passwordController,
+                                obscureText: _obscurePassword,
+                                style: const TextStyle(
+                                  fontSize: 14,
+                                  fontWeight: FontWeight.w500,
+                                  color: Color(0xFF1E293B),
+                                ),
+                                decoration: const InputDecoration(
+                                  border: InputBorder.none,
+                                  isDense: true,
+                                  contentPadding: EdgeInsets.zero,
+                                  hintText: '••••••••••••••',
+                                  hintStyle: TextStyle(
+                                    color: Color(0xFF94A3B8),
+                                    fontSize: 14,
+                                  ),
+                                ),
+                              ),
+                            ),
+                            MouseRegion(
+                              cursor: SystemMouseCursors.click,
+                              child: GestureDetector(
+                                onTap: () => setState(() => _obscurePassword = !_obscurePassword),
+                                child: Icon(
+                                  _obscurePassword ? Icons.visibility_outlined : Icons.visibility_off_outlined,
+                                  size: 18,
+                                  color: const Color(0xFF64748B),
+                                ),
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+
+                      const SizedBox(height: 10),
+
+                      // 5. Forgot Password Link
+                      Align(
+                        alignment: Alignment.centerRight,
+                        child: MouseRegion(
+                          cursor: SystemMouseCursors.click,
+                          child: GestureDetector(
+                            onTap: _showForgotPasswordDialog,
+                            child: const Text(
+                              'Forgot Password?',
+                              style: TextStyle(
+                                fontSize: 12.5,
+                                fontWeight: FontWeight.w500,
                                 color: MacOsTheme.brandBlue,
                               ),
                             ),
                           ),
                         ),
-                        const SizedBox(height: 16),
-                        const Text(
-                          'Sign in to B2Auth',
-                          style: TextStyle(
-                            fontSize: 22,
-                            fontWeight: FontWeight.w800,
-                            color: Color(0xFF1E293B),
-                            letterSpacing: -0.4,
-                          ),
-                        ),
-                        const SizedBox(height: 4),
-                        const Text(
-                          'Use your BETA Account',
-                          style: TextStyle(
-                            fontSize: 13,
-                            fontWeight: FontWeight.w500,
-                            color: Color(0xFF64748B),
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-
-                  const SizedBox(height: 28),
-
-                  // 3. Email Input Field
-                  const Text(
-                    'Email:',
-                    style: TextStyle(
-                      fontSize: 13,
-                      fontWeight: FontWeight.w600,
-                      color: Color(0xFF1E293B),
-                    ),
-                  ),
-                  const SizedBox(height: 6),
-                  Container(
-                    height: 46,
-                    decoration: BoxDecoration(
-                      color: const Color(0xFFEBF2FD),
-                      borderRadius: BorderRadius.circular(10),
-                    ),
-                    padding: const EdgeInsets.symmetric(horizontal: 14),
-                    alignment: Alignment.centerLeft,
-                    child: TextField(
-                      controller: _emailController,
-                      style: const TextStyle(
-                        fontSize: 14,
-                        fontWeight: FontWeight.w500,
-                        color: Color(0xFF1E293B),
                       ),
-                      decoration: const InputDecoration(
-                        border: InputBorder.none,
-                        isDense: true,
-                        contentPadding: EdgeInsets.zero,
-                        hintText: 'user@example.com',
-                        hintStyle: TextStyle(
-                          color: Color(0xFF94A3B8),
-                          fontSize: 14,
-                        ),
-                      ),
-                    ),
-                  ),
 
-                  const SizedBox(height: 18),
+                      const SizedBox(height: 14),
 
-                  // 4. Password Input Field
-                  const Text(
-                    'Password:',
-                    style: TextStyle(
-                      fontSize: 13,
-                      fontWeight: FontWeight.w600,
-                      color: Color(0xFF1E293B),
-                    ),
-                  ),
-                  const SizedBox(height: 6),
-                  Container(
-                    height: 46,
-                    decoration: BoxDecoration(
-                      color: const Color(0xFFEBF2FD),
-                      borderRadius: BorderRadius.circular(10),
-                    ),
-                    padding: const EdgeInsets.symmetric(horizontal: 14),
-                    alignment: Alignment.centerLeft,
-                    child: Row(
-                      children: [
-                        Expanded(
-                          child: TextField(
-                            controller: _passwordController,
-                            obscureText: _obscurePassword,
-                            style: const TextStyle(
-                              fontSize: 14,
-                              fontWeight: FontWeight.w500,
-                              color: Color(0xFF1E293B),
-                            ),
-                            decoration: const InputDecoration(
-                              border: InputBorder.none,
-                              isDense: true,
-                              contentPadding: EdgeInsets.zero,
-                              hintText: '••••••••••••••',
-                              hintStyle: TextStyle(
-                                color: Color(0xFF94A3B8),
-                                fontSize: 14,
-                              ),
-                            ),
-                          ),
-                        ),
-                        MouseRegion(
+                      // 6. Sign in with a saved account link
+                      Center(
+                        child: MouseRegion(
                           cursor: SystemMouseCursors.click,
                           child: GestureDetector(
-                            onTap: () => setState(() => _obscurePassword = !_obscurePassword),
-                            child: Icon(
-                              _obscurePassword ? Icons.visibility_outlined : Icons.visibility_off_outlined,
-                              size: 18,
-                              color: const Color(0xFF64748B),
-                            ),
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-
-                  const SizedBox(height: 10),
-
-                  // 5. Forgot Password Link
-                  Align(
-                    alignment: Alignment.centerRight,
-                    child: MouseRegion(
-                      cursor: SystemMouseCursors.click,
-                      child: GestureDetector(
-                        onTap: _showForgotPasswordDialog,
-                        child: const Text(
-                          'Forgot Password?',
-                          style: TextStyle(
-                            fontSize: 12.5,
-                            fontWeight: FontWeight.w500,
-                            color: MacOsTheme.brandBlue,
-                          ),
-                        ),
-                      ),
-                    ),
-                  ),
-
-                  const SizedBox(height: 14),
-
-                  // 6. Sign in with a saved account link
-                  Center(
-                    child: MouseRegion(
-                      cursor: SystemMouseCursors.click,
-                      child: GestureDetector(
-                        onTap: _showSavedAccountsDialog,
-                        child: const Text(
-                          'Sign in with a saved account',
-                          style: TextStyle(
-                            fontSize: 13,
-                            fontWeight: FontWeight.w500,
-                            color: MacOsTheme.brandBlue,
-                          ),
-                        ),
-                      ),
-                    ),
-                  ),
-
-                  const SizedBox(height: 18),
-
-                  // 7. Login Button
-                  SizedBox(
-                    width: double.infinity,
-                    height: 46,
-                    child: ElevatedButton(
-                      onPressed: _isLoading ? null : _handleSignIn,
-                      style: ElevatedButton.styleFrom(
-                        backgroundColor: MacOsTheme.brandBlue,
-                        elevation: 0,
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(12),
-                        ),
-                      ),
-                      child: _isLoading
-                          ? const SizedBox(
-                              width: 18,
-                              height: 18,
-                              child: CircularProgressIndicator(
-                                strokeWidth: 2,
-                                color: Colors.white,
-                              ),
-                            )
-                          : const Text(
-                              'Login',
+                            onTap: _showSavedAccountsDialog,
+                            child: const Text(
+                              'Sign in with a saved account',
                               style: TextStyle(
-                                fontSize: 15,
-                                fontWeight: FontWeight.w700,
-                                color: Colors.white,
+                                fontSize: 13,
+                                fontWeight: FontWeight.w500,
+                                color: MacOsTheme.brandBlue,
                               ),
                             ),
-                    ),
-                  ),
+                          ),
+                        ),
+                      ),
 
-                  const SizedBox(height: 24),
+                      const SizedBox(height: 18),
 
-                  // 8. Footer Links Row
-                  Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          const Text(
-                            'Help  Privacy  Terms',
-                            style: TextStyle(
-                              fontSize: 11.5,
-                              color: Color(0xFF64748B),
+                      // 7. Login Button
+                      SizedBox(
+                        width: double.infinity,
+                        height: 46,
+                        child: ElevatedButton(
+                          onPressed: _isLoading ? null : _handleSignIn,
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor: MacOsTheme.brandBlue,
+                            elevation: 0,
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(12),
                             ),
                           ),
-                          const SizedBox(height: 4),
+                          child: _isLoading
+                              ? const SizedBox(
+                                  width: 18,
+                                  height: 18,
+                                  child: CircularProgressIndicator(
+                                    strokeWidth: 2,
+                                    color: Colors.white,
+                                  ),
+                                )
+                              : const Text(
+                                  'Login',
+                                  style: TextStyle(
+                                    fontSize: 15,
+                                    fontWeight: FontWeight.w700,
+                                    color: Colors.white,
+                                  ),
+                                ),
+                        ),
+                      ),
+
+                      const SizedBox(height: 24),
+
+                      // 8. Footer Links Row (wraps cleanly without overflow on narrow screens)
+                      Wrap(
+                        alignment: WrapAlignment.spaceBetween,
+                        runAlignment: WrapAlignment.center,
+                        crossAxisAlignment: WrapCrossAlignment.center,
+                        spacing: 12,
+                        runSpacing: 10,
+                        children: [
+                          Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              const Text(
+                                'Help  Privacy  Terms',
+                                style: TextStyle(
+                                  fontSize: 11.5,
+                                  color: Color(0xFF64748B),
+                                ),
+                              ),
+                              const SizedBox(height: 4),
+                              MouseRegion(
+                                cursor: SystemMouseCursors.click,
+                                child: GestureDetector(
+                                  onTap: () {
+                                    ScaffoldMessenger.of(context).showSnackBar(
+                                      const SnackBar(
+                                        content: Text('Please contact support@bnxmail.com to report any issues.'),
+                                        backgroundColor: MacOsTheme.brandBlue,
+                                      ),
+                                    );
+                                  },
+                                  child: const Text(
+                                    'Report Issue',
+                                    style: TextStyle(
+                                      fontSize: 12,
+                                      fontWeight: FontWeight.w500,
+                                      color: MacOsTheme.brandBlue,
+                                    ),
+                                  ),
+                                ),
+                              ),
+                            ],
+                          ),
                           MouseRegion(
                             cursor: SystemMouseCursors.click,
                             child: GestureDetector(
                               onTap: () {
-                                ScaffoldMessenger.of(context).showSnackBar(
-                                  const SnackBar(
-                                    content: Text('Please contact support@bnxmail.com to report any issues.'),
-                                    backgroundColor: MacOsTheme.brandBlue,
+                                Navigator.push(
+                                  context,
+                                  MaterialPageRoute(
+                                    builder: (_) => const RegisterAccountTypeScreen(),
                                   ),
                                 );
                               },
                               child: const Text(
-                                'Report Issue',
+                                'Create Account',
                                 style: TextStyle(
-                                  fontSize: 12,
-                                  fontWeight: FontWeight.w500,
+                                  fontSize: 13,
+                                  fontWeight: FontWeight.w600,
                                   color: MacOsTheme.brandBlue,
                                 ),
                               ),
@@ -669,30 +728,9 @@ class _MacOsLoginViewState extends State<MacOsLoginView> {
                           ),
                         ],
                       ),
-                      MouseRegion(
-                        cursor: SystemMouseCursors.click,
-                        child: GestureDetector(
-                          onTap: () {
-                            Navigator.push(
-                              context,
-                              MaterialPageRoute(
-                                builder: (_) => const RegisterAccountTypeScreen(),
-                              ),
-                            );
-                          },
-                          child: const Text(
-                            'Create Account',
-                            style: TextStyle(
-                              fontSize: 13,
-                              fontWeight: FontWeight.w600,
-                              color: MacOsTheme.brandBlue,
-                            ),
-                          ),
-                        ),
-                      ),
                     ],
                   ),
-                ],
+                ),
               ),
             ),
           ),
