@@ -164,8 +164,7 @@ class ApiClient {
           );
         }
       } else {
-        print('[API ERROR] Token refresh failed. Clearing tokens.');
-        await TokenService.clearAll();
+        print('[API ERROR] Token refresh failed.');
         throw const ApiException(
           statusCode: 401,
           message: 'Session expired. Please log in again.',
@@ -232,8 +231,7 @@ class ApiClient {
           );
         }
       } else {
-        print('[API ERROR] Token refresh failed. Clearing tokens.');
-        await TokenService.clearAll();
+        print('[API ERROR] Token refresh failed.');
         throw const ApiException(
           statusCode: 401,
           message: 'Session expired. Please log in again.',
@@ -291,8 +289,7 @@ class ApiClient {
           '[API RESPONSE RETRY] PUT $uri | Status: ${r.statusCode} | Body: ${r.body.length > 300 ? "${r.body.substring(0, 300)}..." : r.body}',
         );
       } else {
-        print('[API ERROR] Token refresh failed. Clearing tokens.');
-        await TokenService.clearAll();
+        print('[API ERROR] Token refresh failed.');
         throw const ApiException(statusCode: 401, message: 'Session expired.');
       }
     }
@@ -345,8 +342,7 @@ class ApiClient {
           '[API RESPONSE RETRY] PATCH $uri | Status: ${r.statusCode} | Body: ${r.body.length > 300 ? "${r.body.substring(0, 300)}..." : r.body}',
         );
       } else {
-        print('[API ERROR] Token refresh failed. Clearing tokens.');
-        await TokenService.clearAll();
+        print('[API ERROR] Token refresh failed.');
         throw const ApiException(statusCode: 401, message: 'Session expired.');
       }
     }
@@ -395,8 +391,7 @@ class ApiClient {
           '[API RESPONSE RETRY] DELETE $uri | Status: ${r.statusCode} | Body: ${r.body.length > 300 ? "${r.body.substring(0, 300)}..." : r.body}',
         );
       } else {
-        print('[API ERROR] Token refresh failed. Clearing tokens.');
-        await TokenService.clearAll();
+        print('[API ERROR] Token refresh failed.');
         throw const ApiException(statusCode: 401, message: 'Session expired.');
       }
     }

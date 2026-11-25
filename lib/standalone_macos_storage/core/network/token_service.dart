@@ -139,6 +139,24 @@ class TokenService {
 
   // ── Token Expiration Validation ──────────────────────────────────────────
 
+  static String? getEmailFromToken(String? token) {
+    if (token == null || token.isEmpty) return null;
+    try {
+      final parts = token.split('.');
+      if (parts.length < 2) return null;
+      var normalized = parts[1].replaceAll('-', '+').replaceAll('_', '/');
+      while (normalized.length % 4 != 0) {
+        normalized += '=';
+      }
+      final decodedBytes = base64Decode(normalized);
+      final payload = jsonDecode(utf8.decode(decodedBytes));
+      if (payload is Map) {
+        return (payload['sub'] ?? payload['email'] ?? payload['username'])?.toString();
+      }
+    } catch (_) {}
+    return null;
+  }
+
   static bool isTokenExpired(String? token) {
     if (token == null || token.isEmpty || token.startsWith('offline_')) return true;
     try {
@@ -244,6 +262,30 @@ class TokenService {
 
       // If a specific email was requested and not found above, don't bleed another account's token
       if (forEmail != null && forEmail.trim().isNotEmpty) {
+        // 1. Check if the active email in LocalStorageService or memory matches cleanEmail
+        final activeEmail = (await getUserEmail())?.trim().toLowerCase();
+        if (activeEmail != null && activeEmail.isNotEmpty && activeEmail == cleanEmail) {
+          final candidate = _memoryFallback['access_token'] ??
+              _memoryFallback[_kAccess] ??
+              cachedAccessToken;
+          if (candidate != null && !isTokenExpired(candidate)) {
+            cachedAccessToken = candidate;
+            return candidate;
+          }
+        }
+
+        // 2. Check if default/cached token subject matches cleanEmail
+        final generalToken = _memoryFallback['access_token'] ??
+            _memoryFallback[_kAccess] ??
+            cachedAccessToken;
+        if (generalToken != null && !isTokenExpired(generalToken)) {
+          final tokSub = getEmailFromToken(generalToken)?.trim().toLowerCase();
+          if (tokSub != null && (tokSub == cleanEmail || tokSub.split('@').first == cleanEmail.split('@').first)) {
+            cachedAccessToken = generalToken;
+            return generalToken;
+          }
+        }
+
         return null;
       }
     }

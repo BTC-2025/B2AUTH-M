@@ -1232,12 +1232,18 @@ class _ManageAccountScreenState extends ConsumerState<ManageAccountScreen> {
     setState(() => _isLoadingSubIds = true);
     try {
       final active = ref.read(activeAccountProvider);
-      final email = (accountEmail != null && accountEmail.isNotEmpty)
+      String? email = (accountEmail != null &&
+              accountEmail.isNotEmpty &&
+              accountEmail != 'loading')
           ? accountEmail
           : (active.email.isNotEmpty && active.email != 'loading'
-                ? active.email
-                : null);
-      final list = await UserRepository.listSubIds(email);
+              ? active.email
+              : (widget.accountEmail ?? ''));
+      if (email.isEmpty) {
+        email = await TokenService.getUserEmail();
+      }
+      final list = await UserRepository.listSubIds(
+          email?.isNotEmpty == true ? email : null);
       if (mounted) {
         setState(() {
           _apiSubIds = list;
@@ -1394,6 +1400,32 @@ class _ManageAccountScreenState extends ConsumerState<ManageAccountScreen> {
       Navigator.of(context).pop();
     } else {
       Navigator.of(context).maybePop();
+    }
+  }
+
+  void _onSelectTab(int index) {
+    if (index == 4) {
+      _navigateToStoragePage();
+      return;
+    }
+    setState(() {
+      _selectedTab = index;
+      if (index == 0) _homeSubPage = 0;
+    });
+    final active = ref.read(activeAccountProvider);
+    final email = active.email.isNotEmpty && active.email != 'loading'
+        ? active.email
+        : (widget.accountEmail ?? '');
+    final emailParam = email.isNotEmpty ? email : null;
+    if (index == 3) {
+      _loadSubIds(emailParam);
+    } else if (index == 1) {
+      _loadProfileSettings(emailParam);
+    } else if (index == 2) {
+      _loadSubscriptionData(emailParam);
+    } else if (index == 0) {
+      _loadStorageQuota(emailParam);
+      _loadProfileSettings(emailParam);
     }
   }
 
@@ -1849,16 +1881,7 @@ class _ManageAccountScreenState extends ConsumerState<ManageAccountScreen> {
             return Padding(
               padding: const EdgeInsets.only(bottom: 6),
               child: InkWell(
-                onTap: () {
-                  if (index == 4) {
-                    _navigateToStoragePage();
-                    return;
-                  }
-                  setState(() {
-                    _selectedTab = index;
-                    if (index == 0) _homeSubPage = 0;
-                  });
-                },
+                onTap: () => _onSelectTab(index),
                 borderRadius: BorderRadius.circular(24),
                 child: Container(
                   constraints: const BoxConstraints(minHeight: 48),
@@ -1974,16 +1997,7 @@ class _ManageAccountScreenState extends ConsumerState<ManageAccountScreen> {
           return Padding(
             padding: const EdgeInsets.only(right: 8),
             child: InkWell(
-              onTap: () {
-                if (index == 4) {
-                  _navigateToStoragePage();
-                  return;
-                }
-                setState(() {
-                  _selectedTab = index;
-                  if (index == 0) _homeSubPage = 0;
-                });
-              },
+              onTap: () => _onSelectTab(index),
               borderRadius: BorderRadius.circular(20),
               child: Container(
                 padding: const EdgeInsets.symmetric(horizontal: 14),
@@ -4637,7 +4651,7 @@ class _ManageAccountScreenState extends ConsumerState<ManageAccountScreen> {
                         ),
                       ),
                       SizedBox(
-                        width: 50,
+                        width: 80,
                         child: Align(
                           alignment: Alignment.centerRight,
                           child: Text(
@@ -4697,14 +4711,19 @@ class _ManageAccountScreenState extends ConsumerState<ManageAccountScreen> {
                           item['username']?.toString() ??
                           item['email']?.toString() ??
                           '';
-                      final name =
-                          item['name']?.toString() ??
-                          ('${item['firstName'] ?? ''} ${item['lastName'] ?? ''}')
-                              .trim();
+                      String name = item['name']?.toString() ?? '';
+                      if (name.isEmpty || name == 'null') {
+                        final fn = item['firstName']?.toString() ?? '';
+                        final ln = item['lastName']?.toString() ?? '';
+                        name = '$fn $ln'.trim();
+                      }
+                      if (name.isEmpty || name == 'null') {
+                        name = item['displayName']?.toString() ?? '';
+                      }
                       final type =
                           item['accountType']?.toString() ??
                           item['type']?.toString() ??
-                          'MANAGED';
+                          'BUSINESS';
 
                       return Container(
                         padding: const EdgeInsets.symmetric(
@@ -4784,7 +4803,7 @@ class _ManageAccountScreenState extends ConsumerState<ManageAccountScreen> {
                               ),
                             ),
                             SizedBox(
-                              width: 50,
+                              width: 80,
                               child: Align(
                                 alignment: Alignment.centerRight,
                                 child: IconButton(
@@ -4809,7 +4828,7 @@ class _ManageAccountScreenState extends ConsumerState<ManageAccountScreen> {
                 ? SingleChildScrollView(
                     scrollDirection: Axis.horizontal,
                     physics: const BouncingScrollPhysics(),
-                    child: SizedBox(width: 580, child: tableContent),
+                    child: SizedBox(width: 600, child: tableContent),
                   )
                 : tableContent;
           }(),
@@ -4826,7 +4845,10 @@ class _ManageAccountScreenState extends ConsumerState<ManageAccountScreen> {
         account: account,
         isDark: isDark,
         onCreated: (newSubId) {
-          _loadSubIds(account.email);
+          final targetEmail = account.email.isNotEmpty && account.email != 'loading'
+              ? account.email
+              : (widget.accountEmail ?? '');
+          _loadSubIds(targetEmail.isNotEmpty ? targetEmail : null);
           ScaffoldMessenger.of(context).showSnackBar(
             SnackBar(
               content: Text(
@@ -6866,12 +6888,6 @@ class _CreateSubIdDialogState extends State<_CreateSubIdDialog> {
     final password = _passwordController.text.trim();
     final fullName = ('$firstName $lastName').trim();
 
-    final baseEmail = widget.account.email;
-
-    final username = prefix.isNotEmpty
-        ? '$prefix.$baseEmail'
-        : 'sales.${baseEmail.split('@').first}';
-
     if (prefix.isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
@@ -6881,6 +6897,15 @@ class _CreateSubIdDialogState extends State<_CreateSubIdDialog> {
       );
       return;
     }
+
+    String baseEmail = widget.account.email;
+    if (baseEmail.isEmpty || baseEmail == 'loading') {
+      baseEmail = await TokenService.getUserEmail() ?? '';
+    }
+
+    final username = prefix.isNotEmpty
+        ? '$prefix.$baseEmail'
+        : 'sales.${baseEmail.isNotEmpty ? baseEmail.split('@').first : 'user'}';
 
     setState(() => _isSubmitting = true);
 
@@ -6896,7 +6921,7 @@ class _CreateSubIdDialogState extends State<_CreateSubIdDialog> {
             ? 'PERSONAL'
             : 'BUSINESS',
         permissions: perms,
-        accountEmail: baseEmail,
+        accountEmail: baseEmail.isNotEmpty ? baseEmail : null,
       );
 
       final createdUsername =
