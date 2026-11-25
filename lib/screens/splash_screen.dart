@@ -1,10 +1,6 @@
 import 'package:flutter/material.dart';
-import 'package:provider/provider.dart';
 import '../core/theme/app_colors.dart';
-import '../core/services/local_storage_service.dart';
-import 'auth/notifiers/auth_notifier.dart';
 import 'auth/login_screen.dart';
-import 'home_screen.dart';
 
 class SplashScreen extends StatefulWidget {
   const SplashScreen({super.key});
@@ -63,15 +59,9 @@ class _SplashScreenState extends State<SplashScreen>
 
     _controller.forward().then((_) {
       if (mounted) {
-        final authNotifier = context.read<AuthNotifier>();
-        final hasSavedToken =
-            LocalStorageService.getString('access_token') != null;
-        final bool shouldGoHome = authNotifier.isLoggedIn || hasSavedToken;
-
         Navigator.of(context).pushReplacement(
           PageRouteBuilder(
-            pageBuilder: (_, animation, _) =>
-                shouldGoHome ? const HomeScreen() : const LoginScreen(),
+            pageBuilder: (_, animation, _) => const LoginScreen(),
             transitionsBuilder: (_, animation, _, child) {
               return FadeTransition(opacity: animation, child: child);
             },
