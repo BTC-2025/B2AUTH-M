@@ -110,8 +110,7 @@ class UserRepository {
         } else {
           // If local storage has a versioned URL with a cache-buster (?t=...) for this same base URL, preserve it!
           final remoteBase = user.avatarUrl!.split('?').first.trim();
-          if (savedAvatar != null &&
-              savedAvatar.split('?').first.trim() == remoteBase &&
+          if (savedAvatar.split('?').first.trim() == remoteBase &&
               savedAvatar.contains('?t=')) {
             avatarToUse = savedAvatar;
           } else {
@@ -137,7 +136,7 @@ class UserRepository {
   }
 
   /// Retrieves user profile fields (from /api/users/me or /api/users/settings, merged with local storage).
-  static Future<Map<String, dynamic>?> getProfileData({
+  Future<Map<String, dynamic>?> getProfileData({
     String? email,
     String? tempToken,
   }) async {
@@ -231,7 +230,7 @@ class UserRepository {
   }
 
   /// Checks whether a business account has already completed onboarding either locally or remotely.
-  static Future<bool> isBusinessAccountOnboarded(String email) async {
+  Future<bool> isBusinessAccountOnboarded(String email) async {
     final cleanEmail = email.trim().toLowerCase();
     if (cleanEmail.isEmpty) return false;
 
@@ -295,7 +294,7 @@ class UserRepository {
     return false;
   }
 
-  static Future<void> updateProfile(
+  Future<void> updateProfile(
     Map<String, dynamic> fields, {
     String? email,
   }) async {
@@ -352,7 +351,7 @@ class UserRepository {
     }
   }
 
-  static Future<String?> uploadAvatar(
+  Future<String?> uploadAvatar(
     String email,
     String imagePath, {
     Uint8List? bytes,
@@ -416,7 +415,7 @@ class UserRepository {
   }
 
   /// 1.4 Delete Profile Picture: DELETE /api/users/profile-picture
-  static Future<bool> deleteAvatar(String email) async {
+  Future<bool> deleteAvatar(String email) async {
     final cleanEmail = email.trim().toLowerCase();
     if (cleanEmail.isNotEmpty) {
       await TokenService.saveUserAvatar(cleanEmail, '');
@@ -435,7 +434,7 @@ class UserRepository {
 
   // ── Mailboxes (multiple accounts) ────────────────────────────────────────
 
-  static List<dynamic>? _extractList(dynamic json) {
+  List<dynamic>? extractList(dynamic json) {
     if (json is List) return json;
     if (json is Map) {
       final listKeys = [
@@ -452,7 +451,7 @@ class UserRepository {
           final val = json[key];
           if (val is List) return val;
           if (val is Map) {
-            final nested = _extractList(val);
+            final nested = extractList(val);
             if (nested is List) return nested;
           }
         }
@@ -460,7 +459,7 @@ class UserRepository {
       for (final val in json.values) {
         if (val is List) return val;
         if (val is Map) {
-          final nested = _extractList(val);
+          final nested = extractList(val);
           if (nested is List) return nested;
         }
       }
@@ -469,11 +468,11 @@ class UserRepository {
   }
 
   /// Returns all mailboxes/accounts linked to the authenticated user.
-  static Future<List<AccountModel>> getMailboxes() async {
+  Future<List<AccountModel>> getMailboxes() async {
     try {
       final res = await ApiClient.get('/api/emails/list');
       print('[MAILBOXES LIST LOG] GET /api/emails/list returned: $res');
-      final raw = _extractList(res);
+      final raw = extractList(res);
       if (raw == null) return [];
 
       final list = raw
@@ -492,7 +491,7 @@ class UserRepository {
 
   // ── Settings ──────────────────────────────────────────────────────────────
 
-  static Future<Map<String, dynamic>?> getSettings() async {
+  Future<Map<String, dynamic>?> getSettings() async {
     final email = await TokenService.getUserEmail() ?? '';
     final localSettings = await TokenService.getUserSettings(email) ?? {};
 
@@ -510,7 +509,7 @@ class UserRepository {
     }
   }
 
-  static Future<void> updateSettings(Map<String, dynamic> settings) async {
+  Future<void> updateSettings(Map<String, dynamic> settings) async {
     final email = await TokenService.getUserEmail() ?? '';
     final existing = await TokenService.getUserSettings(email) ?? {};
 
@@ -549,7 +548,7 @@ class UserRepository {
 
   // ── Recovery ─────────────────────────────────────────────────────────────
 
-  static Future<Map<String, dynamic>?> getRecovery({String? email}) async {
+  Future<Map<String, dynamic>?> getRecovery({String? email}) async {
     try {
       final res = await ApiClient.get(
         '/api/users/recovery',
@@ -561,7 +560,7 @@ class UserRepository {
     }
   }
 
-  static Future<void> updateRecovery(
+  Future<void> updateRecovery(
     String recoveryEmail,
     String phoneNumber, {
     String? email,
@@ -598,7 +597,7 @@ class UserRepository {
 
   // ── Signatures ────────────────────────────────────────────────────────────
 
-  static Future<List<Map<String, dynamic>>> getSignatures() async {
+  Future<List<Map<String, dynamic>>> getSignatures() async {
     try {
       final res = await ApiClient.get('/api/signatures');
       final list = res['data'] ?? res['signatures'] ?? res;
@@ -614,7 +613,7 @@ class UserRepository {
     return [];
   }
 
-  static Future<void> createSignature({
+  Future<void> createSignature({
     required String name,
     required String content,
     bool isDefault = true,
@@ -627,7 +626,7 @@ class UserRepository {
     } catch (_) {}
   }
 
-  static Future<void> updateSignature({
+  Future<void> updateSignature({
     required String id,
     required String name,
     required String content,
@@ -641,13 +640,13 @@ class UserRepository {
     } catch (_) {}
   }
 
-  static Future<void> deleteSignature(String id) async {
+  Future<void> deleteSignature(String id) async {
     try {
       await ApiClient.delete('/api/signatures/$id');
     } catch (_) {}
   }
 
-  static Future<void> setDefaultSignature(String id) async {
+  Future<void> setDefaultSignature(String id) async {
     try {
       await ApiClient.patch('/api/signatures/$id/default');
     } catch (_) {}
@@ -655,7 +654,7 @@ class UserRepository {
 
   // ── Change Password ───────────────────────────────────────────────────────
 
-  static Future<void> changePassword(
+  Future<void> changePassword(
     String currentPassword,
     String newPassword, {
     String? email,
@@ -686,7 +685,7 @@ class UserRepository {
   // ── Section 5: Manage Accounts & Sub-IDs ───────────────────────────────────
 
   /// 5.1 List Connected Mail Accounts (GET /api/emails/list)
-  static Future<List<Map<String, dynamic>>> getConnectedEmails({String? email}) async {
+  Future<List<Map<String, dynamic>>> getConnectedEmails({String? email}) async {
     try {
       final res = await ApiClient.get('/api/emails/list', accountEmail: email);
       final data = res['data'];
@@ -698,7 +697,7 @@ class UserRepository {
       } else if (res['emails'] is List) {
         list = res['emails'];
       } else {
-        list = _extractList(res);
+        list = extractList(res);
       }
       if (list is List) {
         return list
@@ -714,7 +713,7 @@ class UserRepository {
   }
 
   /// 5.2 Create New Mailbox / Alias (POST /api/emails/create)
-  static Future<Map<String, dynamic>?> createMailbox({
+  Future<Map<String, dynamic>?> createMailbox({
     required String emailName,
     required String password,
     String? email,
@@ -737,7 +736,7 @@ class UserRepository {
   }
 
   /// 5.3 Switch Primary Mailbox (POST /api/emails/{emailId}/set-primary)
-  static Future<bool> switchPrimaryMailbox(dynamic emailId, {String? email}) async {
+  Future<bool> switchPrimaryMailbox(dynamic emailId, {String? email}) async {
     try {
       final res = await ApiClient.post(
         '/api/emails/$emailId/set-primary',
@@ -751,12 +750,12 @@ class UserRepository {
   }
 
   /// Alias for switchPrimaryMailbox for backward compatibility
-  static Future<void> setPrimaryMailbox(dynamic emailId, {String? email}) async {
+  Future<void> setPrimaryMailbox(dynamic emailId, {String? email}) async {
     await switchPrimaryMailbox(emailId, email: email);
   }
 
   /// 5.1 Initiate Email Verification: POST /api/verification/initiate/{emailId}
-  static Future<bool> initiateEmailVerification(dynamic emailId, {String? email}) async {
+  Future<bool> initiateEmailVerification(dynamic emailId, {String? email}) async {
     try {
       final res = await ApiClient.post(
         '/api/verification/initiate/$emailId',
@@ -778,7 +777,7 @@ class UserRepository {
   }
 
   /// 5.4 Create Sub-ID Account (POST /api/subid/create)
-  static Future<Map<String, dynamic>?> createSubId({
+  Future<Map<String, dynamic>?> createSubId({
     required String prefix,
     required String password,
     required String firstName,
@@ -841,7 +840,7 @@ class UserRepository {
   }
 
   /// 5.5 List Sub-ID Accounts (GET /api/subid/list)
-  static Future<List<Map<String, dynamic>>> listSubIds([String? email]) async {
+  Future<List<Map<String, dynamic>>> listSubIds([String? email]) async {
     try {
       final res = await ApiClient.get('/api/subid/list', accountEmail: email);
       final data = res['data'];
@@ -853,7 +852,7 @@ class UserRepository {
       } else if (res['subids'] is List) {
         list = res['subids'];
       } else {
-        list = _extractList(res);
+        list = extractList(res);
       }
       if (list is List) {
         return list
@@ -869,7 +868,7 @@ class UserRepository {
   }
 
   /// Delete Sub-ID Account (DELETE /api/subid/{id})
-  static Future<bool> deleteSubId(dynamic id, [String? accountEmail]) async {
+  Future<bool> deleteSubId(dynamic id, [String? accountEmail]) async {
     try {
       print('[SUBID DELETE] Calling DELETE endpoint: /api/subid/$id');
       final res = await ApiClient.delete(
@@ -885,7 +884,7 @@ class UserRepository {
   }
 
   /// 5.6 Parent Approval for Child Accounts (PATCH /api/users/{id}/approve)
-  static Future<bool> approveChildAccount(dynamic userId, {String? email}) async {
+  Future<bool> approveChildAccount(dynamic userId, {String? email}) async {
     try {
       final res = await ApiClient.patch(
         '/api/users/$userId/approve',
@@ -902,7 +901,7 @@ class UserRepository {
   // ── Sessions & Activity Logs ──────────────────────────────────────────────
 
   /// Fetches active authenticated login sessions from GET /api/auth/sessions
-  static Future<List<Map<String, String>>> getSessions({String? email}) async {
+  Future<List<Map<String, String>>> getSessions({String? email}) async {
     try {
       final res = await ApiClient.get(
         '/api/auth/sessions',
@@ -955,7 +954,7 @@ class UserRepository {
   }
 
   /// Revokes an active session via DELETE /api/auth/sessions/{id}
-  static Future<bool> revokeSession(String sessionId, {String? email}) async {
+  Future<bool> revokeSession(String sessionId, {String? email}) async {
     try {
       final res = await ApiClient.delete(
         '/api/auth/sessions/$sessionId',
@@ -969,7 +968,7 @@ class UserRepository {
   }
 
   /// Fetches recent security and activity logs from GET /api/users/activity-logs
-  static Future<List<Map<String, String>>> getActivityLogs([
+  Future<List<Map<String, String>>> getActivityLogs([
     String? email,
   ]) async {
     try {
@@ -1000,7 +999,7 @@ class UserRepository {
   // ── Device Token API for FCM Push Notifications ──────────────────────────
 
   /// Registers FCM device token with backend API after login or token refresh.
-  static Future<void> registerDeviceToken(String deviceToken) async {
+  Future<void> registerDeviceToken(String deviceToken) async {
     if (deviceToken.trim().isEmpty) return;
     final deviceType = Platform.isIOS ? 'ios' : 'android';
     try {
@@ -1016,7 +1015,7 @@ class UserRepository {
   }
 
   /// Unregisters FCM device token from backend API on logout.
-  static Future<void> unregisterDeviceToken(String deviceToken) async {
+  Future<void> unregisterDeviceToken(String deviceToken) async {
     if (deviceToken.trim().isEmpty) return;
     try {
       print(

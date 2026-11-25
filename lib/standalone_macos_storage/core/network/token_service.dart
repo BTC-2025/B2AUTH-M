@@ -378,7 +378,9 @@ class TokenService {
   }
 
   static Future<void> saveUserAvatar(String avatarUrl, [String? forEmail]) async {
-    final cleanEmail = forEmail?.trim().toLowerCase();
+    if (forEmail != null && forEmail.trim().isNotEmpty) {
+      await _writeKey('bnx_user_avatar_${forEmail.trim().toLowerCase()}', avatarUrl);
+    final cleanEmail = forEmail.trim().toLowerCase();
     if (cleanEmail != null && cleanEmail.isNotEmpty) {
       if (avatarUrl.isNotEmpty) {
         await _writeKey('bnx_user_avatar_$cleanEmail', avatarUrl);
@@ -386,6 +388,7 @@ class TokenService {
         await _deleteKey('bnx_user_avatar_$cleanEmail');
       }
     }
+    await _writeKey(_kAvatar, avatarUrl);
     await _deleteKey(_kAvatar);
   }
 
@@ -395,11 +398,13 @@ class TokenService {
     if (cleanEmail != null && cleanEmail.isNotEmpty) {
       final key = 'bnx_user_avatar_$cleanEmail';
       if (_memoryFallback.containsKey(key)) {
+        return _memoryFallback[key];
         final val = _memoryFallback[key];
         return (val != null && val.isNotEmpty) ? val : null;
       }
       return null;
     }
+    return _readKey(_kAvatar);
     return null;
   }
 
