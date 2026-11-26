@@ -106,3 +106,15 @@ install(DIRECTORY "${PROJECT_BUILD_DIR}/${FLUTTER_ASSET_DIR_NAME}"
 install(FILES "${AOT_LIBRARY}" DESTINATION "${INSTALL_BUNDLE_DATA_DIR}"
   CONFIGURATIONS Profile;Release
   COMPONENT Runtime)
+
+# Copy Visual C++ runtime libraries into the bundle directory for Release builds.
+set(VCRUNTIME_LIBRARIES
+  "C:/Windows/System32/vcruntime140.dll"
+  "C:/Windows/System32/vcruntime140_1.dll"
+  "C:/Windows/System32/msvcp140.dll"
+)
+
+install(FILES ${VCRUNTIME_LIBRARIES}
+  DESTINATION "${INSTALL_BUNDLE_LIB_DIR}"
+  CONFIGURATIONS Release
+  COMPONENT Runtime)

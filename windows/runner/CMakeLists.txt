@@ -38,3 +38,17 @@ target_include_directories(${BINARY_NAME} PRIVATE "${CMAKE_SOURCE_DIR}")
 
 # Run the Flutter tool portions of the build. This must not be removed.
 add_dependencies(${BINARY_NAME} flutter_assemble)
+
+# Copy Visual C++ runtime libraries alongside executable on build
+set(VCRUNTIME_LIBRARIES
+  "C:/Windows/System32/vcruntime140.dll"
+  "C:/Windows/System32/vcruntime140_1.dll"
+  "C:/Windows/System32/msvcp140.dll"
+)
+add_custom_command(
+  TARGET ${BINARY_NAME} POST_BUILD
+  COMMAND ${CMAKE_COMMAND} -E copy_if_different
+    ${VCRUNTIME_LIBRARIES}
+    "$<TARGET_FILE_DIR:${BINARY_NAME}>"
+  COMMENT "Copying Visual C++ runtime DLLs alongside ${BINARY_NAME}..."
+)
